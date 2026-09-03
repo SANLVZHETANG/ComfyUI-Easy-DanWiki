@@ -1305,6 +1305,7 @@ function openStyler() {
 		_styler = new Styler();
 	} catch (err) {
 		console.error("[dbtags] styler failed to open:", err);
+		window.alert("外观定制器打开失败：" + (err && err.message ? err.message : err));
 	}
 }
 
@@ -1597,7 +1598,7 @@ class Styler {
 		});
 		this.labInput.value = "girl";
 		this.labInput.oninput = () => this.#labRefresh();
-		this.labList = mk("dbtags-ac-list dbtags-ac-styler-lab-list");
+		this.labList = mk("dbtags-ac-list.dbtags-ac-styler-lab-list");
 		this.labStats = $el("div.dbtags-ac-styler-lab-stats");
 		const lab = $el("div.dbtags-ac-styler-lab", {}, [
 			$el("div.dbtags-ac-styler-lab-title", { textContent: "搜索试验台（与真实补全同一管线）" }),
@@ -1622,7 +1623,7 @@ class Styler {
 			]),
 			this.pSummary, this.pLinks, this.pImg,
 		]);
-		this.panelWrap = mk("div.dbtags-ac-wrap.dbtags-ac-preview-wrap", [mk("dbtags-ac-panelstack", [panel])]);
+		this.panelWrap = mk("dbtags-ac-wrap.dbtags-ac-preview-wrap", [mk("dbtags-ac-panelstack", [panel])]);
 		this.prev.append(lab, this.panelWrap);
 		this.#syncPreviewPanel();
 		this.#labRefresh();
