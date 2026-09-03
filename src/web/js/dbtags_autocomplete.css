@@ -651,3 +651,37 @@
 	color: #d8dade;
 	cursor: pointer;
 }
+
+.dbtags-ac-styler-lab {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.dbtags-ac-styler-lab-title {
+	color: #fff;
+	font-size: 12px;
+}
+
+.dbtags-ac-styler-lab-input {
+	background: #1d1f23;
+	border: 1px solid #565b66;
+	border-radius: 4px;
+	padding: 4px 8px;
+	color: #d8dade;
+	font-size: 12px;
+}
+
+.dbtags-ac-styler-lab-list {
+	max-height: 220px;
+}
+
+.dbtags-ac-styler-lab-stats {
+	color: #8a8f98;
+	font-size: 11px;
+}
+
+.dbtags-ac-imgprior .dbtags-ac-fakeimg {
+	height: 340px;
+}

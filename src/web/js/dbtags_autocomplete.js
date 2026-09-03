@@ -475,6 +475,85 @@ class CaretHelper {
 /* ---- autocomplete overlay (list + info panel) ---- */
 const AC_INSTANCES = new Set(); // live completions, for settings-driven refresh
 
+/* shared query pipeline (real popup + styler lab use this exact path) */
+function runQuery(term, word) {
+	const t0 = performance.now();
+	let results = searchTags(word);
+	let isFuzzy = false;
+	const fuzzyMode = Config.get("fuzzy", "always");
+	if (fuzzyMode !== "off") {
+		const shouldFuzzy = fuzzyMode === "always" ||
+			(!results.length && fuzzyMode === "fallback");
+		if (shouldFuzzy) {
+			const hits = bodySearch(term);
+			if (results.length > 0 && fuzzyMode === "always") {
+				const seen = new Set(results.map((r) => r.tag.name));
+				for (const h of hits) {
+					if (results.length >= 30) break;
+					if (seen.has(h.tag.name)) continue;
+					seen.add(h.tag.name);
+					results.push(h);
+					isFuzzy = true;
+				}
+			} else if (hits.length) {
+				results = hits;
+				isFuzzy = true;
+			}
+		}
+	}
+	dlog("D", `search "${term}" -> ${results.length}${isFuzzy ? " (body)" : ""} hits, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
+	if (!results.length) return { list: [], total: 0 };
+	const lim = applyLimit(results);
+	return { ...lim, isFuzzy };
+}
+
+/* one candidate row (no event wiring: caller adds onclick/hover) */
+function buildItemRow(item, word) {
+	const { tag, matchType, matchText, snippet } = item;
+	const parts = [];
+	if (matchType === "name") {
+		const lower = tag.name.toLowerCase();
+		const pos = lower.indexOf(word);
+		parts.push(
+			$el(
+				"span.dbtags-ac-name",
+				{},
+				[
+					$el("span", { textContent: tag.name.substr(0, pos) }),
+					$el("span.dbtags-ac-highlight", { textContent: tag.name.substr(pos, word.length) }),
+					$el("span", { textContent: tag.name.substr(pos + word.length) }),
+				]
+			)
+		);
+	} else {
+		parts.push($el("span.dbtags-ac-name", { textContent: tag.name }));
+	}
+	parts.push($el("span.dbtags-ac-count", { textContent: fmtCount(tag.post_count), title: String(tag.post_count) }));
+	if (matchType === "fuzzy" && snippet) {
+		const s = $el("span.dbtags-ac-snippet", { title: wikiText(tag).replace(/\[\[|\]\]/g, "") });
+		if (snippet.hiStart != null && snippet.hiStart >= 0) {
+			s.append(
+				snippet.text.slice(0, snippet.hiStart),
+				$el("span.dbtags-ac-snippet-hit", {
+					textContent: snippet.text.slice(snippet.hiStart, snippet.hiEnd),
+				}),
+				snippet.text.slice(snippet.hiEnd)
+			);
+		} else {
+			s.textContent = snippet.text;
+		}
+		parts.push(s);
+	} else if (langIsZh()) {
+		const ZH_HIT = { zhtag: "译名", aliases_zh: "新库别名", zh: "源站别名", py: "拼音命中" };
+		const primary = tag.zhtag || listField(tag.aliases_zh)[0] || listField(tag.zh)[0] || "";
+		parts.push($el("span.dbtags-ac-zh", { textContent: primary }));
+		if (ZH_HIT[matchType] && matchText && matchText !== primary) {
+			parts.push($el("span.dbtags-ac-zh-src", { textContent: ` ${matchText}`, title: `命中来源：${ZH_HIT[matchType]}` }));
+		}
+	}
+	return $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), {}, parts);
+}
+
 class DBTagsAutoComplete {
 	constructor(el, widget) {
 		this.el = el;
@@ -1012,96 +1091,25 @@ class DBTagsAutoComplete {
 		this._highlightTerms = term ? [term] : [];
 		this._querySeq = (this._querySeq || 0) + 1;
 		const seq = this._querySeq;
-		const t0 = performance.now();
-		let results = searchTags(word);
-		let isFuzzy = false;
-		const fuzzyMode = Config.get("fuzzy", "always");
-		if (fuzzyMode !== "off") {
-			const shouldFuzzy = fuzzyMode === "always" ||
-				(!results.length && fuzzyMode === "fallback");
-			if (shouldFuzzy) {
-				const hits = bodySearch(term);
-				if (results.length > 0 && fuzzyMode === "always") {
-					// append body matches after normal results (dedup, cap 30)
-					const seen = new Set(results.map((r) => r.tag.name));
-					for (const h of hits) {
-						if (results.length >= 30) break;
-						if (seen.has(h.tag.name)) continue;
-						seen.add(h.tag.name);
-						results.push(h);
-						isFuzzy = true;
-					}
-				} else if (hits.length) {
-					results = hits;
-					isFuzzy = true;
-				}
-			}
-		}
+		const { list, total, dropped, minPc, isFuzzy } = runQuery(term, word);
 		if (seq !== this._querySeq) return; // stale result, drop it
-		dlog("D", `search "${term}" -> ${results.length}${isFuzzy ? " (body)" : ""} hits, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
-		if (!results.length) {
-			// mid-phrase typing (has a space): keep the panel open with a hint
-			if (term.includes(" ") && fuzzyMode !== "off") {
-				this.#showEmpty(`无匹配 — 正文需输入完整短语（${term}）`);
+		if (!list.length) {
+			if (!total) {
+				// mid-phrase typing (has a space): keep the panel open with a hint
+				if (term.includes(" ") && Config.get("fuzzy", "always") !== "off") {
+					this.#showEmpty(`无匹配 — 正文需输入完整短语（${term}）`);
+					return;
+				}
+				this.#hide();
 				return;
 			}
-			this.#hide();
-			return;
-		}
-		const { list, total, dropped, minPc } = applyLimit(results);
-		if (!list.length) {
-			// everything filtered out by the post_count threshold
-			this.#showEmpty(`低于最低热度，换关键词或调低阈值（设置 → Danbooru 补全）`);
+			this.#showEmpty(`低于最低热度，换关键词或调低阈值（设置中心可调）`);
 			return;
 		}
 		this.current = list;
 		const items = list.map((item) => {
-			const { tag, matchType, matchText, snippet } = item;
-			const parts = [];
-			// english name (highlight the matched span when the query hit the name)
-			if (matchType === "name") {
-				const lower = tag.name.toLowerCase();
-				const pos = lower.indexOf(token.word);
-				parts.push(
-					$el(
-						"span.dbtags-ac-name",
-						{},
-						[
-							$el("span", { textContent: tag.name.substr(0, pos) }),
-							$el("span.dbtags-ac-highlight", { textContent: tag.name.substr(pos, token.word.length) }),
-							$el("span", { textContent: tag.name.substr(pos + token.word.length) }),
-						]
-					)
-				);
-			} else {
-				parts.push($el("span.dbtags-ac-name", { textContent: tag.name }));
-			}
-			parts.push($el("span.dbtags-ac-count", { textContent: fmtCount(tag.post_count), title: String(tag.post_count) }));
-			if (matchType === "fuzzy" && snippet) {
-					const s = $el("span.dbtags-ac-snippet", { title: wikiText(tag).replace(/\[\[|\]\]/g, "") });
-				if (snippet.hiStart != null && snippet.hiStart >= 0) {
-					s.append(
-						snippet.text.slice(0, snippet.hiStart),
-						$el("span.dbtags-ac-snippet-hit", {
-							textContent: snippet.text.slice(snippet.hiStart, snippet.hiEnd),
-						}),
-						snippet.text.slice(snippet.hiEnd)
-					);
-				} else {
-					s.textContent = snippet.text;
-				}
-				parts.push(s);
-			} else if (langIsZh()) {
-				// chinese label: always the translated tag name; the alias that
-				// actually matched is appended in a small muted hint
-				const ZH_HIT = { zhtag: "译名", aliases_zh: "新库别名", zh: "源站别名", py: "拼音命中" };
-				const primary = tag.zhtag || listField(tag.aliases_zh)[0] || listField(tag.zh)[0] || "";
-				parts.push($el("span.dbtags-ac-zh", { textContent: primary }));
-				if (ZH_HIT[matchType] && matchText && matchText !== primary) {
-					parts.push($el("span.dbtags-ac-zh-src", { textContent: ` ${matchText}`, title: `命中来源：${ZH_HIT[matchType]}` }));
-				}
-			}
-			const row = $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), { onclick: () => { this.#insert(); } }, parts);
+			const row = buildItemRow(item, word);
+			row.addEventListener("click", () => this.#insert());
 			row.addEventListener("mouseenter", () => this.#setSelected(item));
 			item.el = row;
 			return row;
@@ -1289,6 +1297,8 @@ class Styler {
 		Config.set(key, String(value));
 		applyConfig();
 		for (const ac of AC_INSTANCES) ac.refreshPrefs();
+		this.#syncPreviewPanel();
+		this.#labRefresh();
 	}
 
 	#comboRow(label, key, options, dflt) {
@@ -1391,6 +1401,13 @@ class Styler {
 			this.#sliderRow("最多候选数", "maxCount", 10, 60, 30),
 		);
 
+		const gMode = this.#group("候选与数据");
+		gMode.append(
+			this.#comboRow("候选模式", "mode", [["pc", "post_count 优先（过滤低热度）"], ["count", "数量优先（最多 N 个）"], ["all", "全部显示（可能卡顿）"]], "pc"),
+			this.#boolRow("调试日志", "debug"),
+		);
+		gMode.append($el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() }));
+
 		const gPanel = this.#group("wiki 面板");
 		gPanel.append(
 			this.#boolRow("打开面板", "showWiki"),
@@ -1402,51 +1419,103 @@ class Styler {
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("括号键导航", "bracketNav"),
 		);
+		const gDanger = this.#group("重置");
+		gDanger.append($el("button.dbtags-ac-styler-reset", {
+			textContent: "全部设置恢复默认（含自定义配色）",
+			onclick: () => {
+				if (!confirm("清空全部 Danbooru 补全设置并恢复默认？不影响索引/翻译数据。")) return;
+				for (const k of Object.keys(localStorage)) {
+					if (k.startsWith(ID + ".")) localStorage.removeItem(k);
+				}
+				applyConfig();
+				for (const ac of AC_INSTANCES) ac.refreshPrefs();
+				this.close();
+				openStyler();
+			},
+		}));
 		this.#refreshSwatches();
 	}
 
 	#buildPreview() {
 		const mk = (cls, kids) => $el("div." + cls, {}, kids);
-		const row = (name, count, zh, sel, fuzzy) => mk("dbtags-ac-item"
-			+ (sel ? ".dbtags-ac-item--selected" : "")
-			+ (fuzzy ? ".dbtags-ac-item--fuzzy" : ""), [
-			$el("span.dbtags-ac-name", { textContent: name }),
-			$el("span.dbtags-ac-count", { textContent: count }),
-			$el("span.dbtags-ac-zh", { textContent: zh }),
+		this.labInput = $el("input.dbtags-ac-styler-lab-input", {
+			placeholder: "像平时一样打字试匹配：girl / 美 / cha / nan…",
+		});
+		this.labInput.value = "girl";
+		this.labInput.oninput = () => this.#labRefresh();
+		this.labList = mk("dbtags-ac-list dbtags-ac-styler-lab-list");
+		this.labStats = $el("div.dbtags-ac-styler-lab-stats");
+		const lab = $el("div.dbtags-ac-styler-lab", {}, [
+			$el("div.dbtags-ac-styler-lab-title", { textContent: "搜索试验台（与真实补全同一管线）" }),
+			this.labInput, this.labList, this.labStats,
 		]);
-		const list = mk("dbtags-ac-list", [
-			row("1girl", "8.3M", "单女孩", true),
-			row("cherry_blossoms", "1.2M", "樱花"),
-			mk("dbtags-ac-item.dbtags-ac-item--fuzzy", [
-				$el("span.dbtags-ac-name", { textContent: "rain umbrella" }),
-				$el("span.dbtags-ac-snippet", {}, [
-					"...她在雨中",
-					$el("span.dbtags-ac-snippet-hit", { textContent: "撑伞" }),
-					"回眸，背景是霓虹…" ,
-				]),
-			]),
-		]);
-		const summ = $el("div.dbtags-ac-panel-summary", {}, [
+		this.pSummary = $el("div.dbtags-ac-panel-summary", {}, [
 			document.createTextNode("只包含一名女性角色的图像。另见 "),
 			$el("span.dbtags-ac-link", { textContent: "solo" }),
 			document.createTextNode(" 、 "),
 			$el("span.dbtags-ac-link.dbtags-ac-link--added", { textContent: "looking_at_viewer" }),
 			document.createTextNode(" 。示例图展示持伞回眸的猫耳少女，霓虹雨夜氛围。"),
 		]);
+		this.pLinks = mk("dbtags-ac-panel-links", [
+			$el("span.dbtags-ac-link", { textContent: "+ cat_ears（猫耳）" }),
+			$el("span.dbtags-ac-link", { textContent: "+ holding_umbrella（撑伞）" }),
+		]);
+		this.pImg = $el("div.dbtags-ac-panel-img.dbtags-ac-fakeimg");
 		const panel = mk("dbtags-ac-panel", [
 			mk("dbtags-ac-panel-head", [
 				$el("div.dbtags-ac-panel-title", { textContent: "1girl  8.3M" }),
 				$el("span.dbtags-ac-plus", { textContent: "+" }),
 			]),
-			summ,
-			mk("dbtags-ac-panel-links", [
-				$el("span.dbtags-ac-link", { textContent: "+ cat_ears（猫耳）" }),
-				$el("span.dbtags-ac-link", { textContent: "+ holding_umbrella（撑伞）" }),
-			]),
-			$el("div.dbtags-ac-fakeimg"),
+			this.pSummary, this.pLinks, this.pImg,
 		]);
-		const stack = mk("dbtags-ac-panelstack", [panel]);
-		this.prev.append(mk("dbtags-ac-wrap.dbtags-ac-preview-wrap", [list, stack]));
+		this.panelWrap = mk("div.dbtags-ac-wrap.dbtags-ac-preview-wrap", [mk("dbtags-ac-panelstack", [panel])]);
+		this.prev.append(lab, this.panelWrap);
+		this.#syncPreviewPanel();
+		this.#labRefresh();
+	}
+
+	#labRefresh() {
+		if (!this.labInput) return;
+		const term = this.labInput.value.replace(/\[|\]/g, "").trim();
+		if (!term) {
+			this.labList.replaceChildren();
+			this.labStats.textContent = "输入以测试";
+			return;
+		}
+		const word = term.replace(/\s+/g, "_");
+		const { list, total, dropped, minPc } = runQuery(term, word);
+		const rows = list.map((item, i) => {
+			const row = buildItemRow(item, word);
+			if (i === 0) row.classList.add("dbtags-ac-item--selected");
+			return row;
+		});
+		if (total > list.length) {
+			rows.push($el("div.dbtags-ac-empty", { textContent: `共 ${total} 条，仅显示前 ${list.length} 条` }));
+		}
+		if (dropped > 0) {
+			rows.push($el("div.dbtags-ac-empty", { textContent: `另有 ${dropped} 条低于 ${minPc} 热度未显示` }));
+		}
+		this.labList.replaceChildren(...rows);
+		const bodyHits = list.filter((i) => i.matchType === "fuzzy").length;
+		this.labStats.textContent =
+			`命中 ${total} · 显示 ${list.length}` +
+			(dropped > 0 ? ` · 被热度过滤 ${dropped}` : "") +
+			(bodyHits ? ` · 其中正文匹配 ${bodyHits}` : "");
+	}
+
+	#syncPreviewPanel() {
+		const on = (el, show) => { el.style.display = show ? "" : "none"; };
+		on(this.pSummary, Config.get("showSummary", "true") !== "false");
+		on(this.pLinks, Config.get("showLinks", "true") !== "false");
+		on(this.pImg, Config.get("showImage", "true") !== "false");
+		on(this.panelWrap, Config.get("showWiki", "true") !== "false");
+		this.panelWrap.classList.toggle("dbtags-ac-imgprior", Config.get("panelImg", "false") !== "false");
+	}
+	#dataInfo() {
+		if (!index) return "数据未加载";
+		let mn = Infinity;
+		for (const t of index.tags) if (t.post_count < mn) mn = t.post_count;
+		return `数据：v${index.version} · ${index.count} 标签 · 源站热度下限 ${mn} · 构建于 ${index.built_at}`;
 	}
 
 	#buildPickers() {
@@ -1531,113 +1600,8 @@ app.registerExtension({
 			return r;
 		};
 
-		// settings (P6): theme / debug / width / font
-		app.ui.settings.addSetting({
-			id: ID + ".theme",
-			name: "Danbooru 补全 - 主题",
-			type: "combo",
-			defaultValue: "dark",
-			options: [
-				{ value: "dark", text: "黑灰" },
-				{ value: "light", text: "米白" },
-				{ value: "pink", text: "喵粉（nya~）" },
-				{ value: "custom", text: "自定义（外观定制器取色）" },
-			],
-			onChange: (value) => {
-				Config.set("theme", value);
-				applyConfig();
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".opacity",
-			name: "Danbooru 补全 - 弹窗透明度（25-100，数字越小越透明，文字不受影响）",
-			type: "number",
-			defaultValue: 100,
-			onChange: (value) => {
-				Config.set("opacity", value);
-				applyConfig();
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".lang",
-			name: "Danbooru 补全 - 显示语言（仅切换显示，搜索始终中英通用）",
-			type: "combo",
-			defaultValue: "zh",
-			options: [
-				{ value: "zh", text: "中文（无译文回退英文）" },
-				{ value: "en", text: "English" },
-			],
-			onChange: (value) => {
-				Config.set("lang", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".aliasTable",
-			name: "Danbooru 补全 - 中文别名表（翻译库别名参与中文搜索）",
-			type: "boolean",
-			defaultValue: true,
-			onChange: (value) => {
-				Config.set("aliasTable", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".pyMode",
-			name: "Danbooru 补全 - 拼音搜索（字母输入按拼音匹配中文）",
-			type: "combo",
-			defaultValue: "zh-first",
-			options: [
-				{ value: "zh-first", text: "拼音结果靠前" },
-				{ value: "en-first", text: "英文结果靠前" },
-				{ value: "off", text: "关闭" },
-			],
-			onChange: (value) => {
-				Config.set("pyMode", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".pyMinLen",
-			name: "Danbooru 补全 - 拼音搜索最少字母数（低于不触发）",
-			type: "number",
-			defaultValue: 4,
-			onChange: (value) => {
-				Config.set("pyMinLen", value);
-			},
-		});
-
-		for (const [key, name] of [
-			["showSummary", "wiki 面板 - 显示释义正文"],
-			["showImage", "wiki 面板 - 显示示例图"],
-			["showLinks", "wiki 面板 - 显示关联标签胶囊（跳转）"],
-			["showWiki", "wiki 面板 - 打开右侧面板（关闭时只留候选列表，正文匹配仍有效）"],
-		]) {
-			app.ui.settings.addSetting({
-				id: ID + "." + key,
-				name: "Danbooru 补全 - " + name,
-				type: "boolean",
-				defaultValue: true,
-				onChange: (value) => {
-					Config.set(key, String(value));
-					for (const ac of AC_INSTANCES) ac.refreshPrefs();
-				},
-			});
-		}
-
-		app.ui.settings.addSetting({
-			id: ID + ".panelImg",
-			name: "Danbooru 补全 - wiki 面板图片优先（开=图大区小整体滚动；关=文字优先自动缩放，即默认）",
-			type: "boolean",
-			defaultValue: false,
-			onChange: (value) => {
-				Config.set("panelImg", String(value));
-				for (const ac of AC_INSTANCES) ac.refreshPrefs();
-			},
-		});
-
+		// P17: single entry point — every setting lives in the styler window
+		// (storage keys unchanged, existing values keep working)
 		app.ui.settings.addSetting({
 			id: ID + ".openStyler",
 			name: "Danbooru 补全 - 外观定制器",
@@ -1651,141 +1615,6 @@ app.registerExtension({
 				if (value !== "open") return;
 				openStyler();
 				try { app.ui.settings.setSettingValue?.(ID + ".openStyler", ""); } catch { void 0; }
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".bracketNav",
-			name: "Danbooru 补全 - 候选框打开时 [ ] 键上下移动焦点条目（关闭则 [ ] 正常输入）",
-			type: "boolean",
-			defaultValue: true,
-			onChange: (value) => {
-				Config.set("bracketNav", String(value));
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".debug",
-			name: "Danbooru 补全 - 调试模式",
-			type: "boolean",
-			defaultValue: false,
-			onChange: (value) => {
-				Config.set("debug", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".mode",
-			name: "Danbooru 补全 - 候选模式（全部显示可能卡顿）",
-			type: "combo",
-			defaultValue: "pc",
-			options: [
-				{ value: "pc", text: "post_count 优先（过滤低热度）" },
-				{ value: "count", text: "数量优先（最多 N 个）" },
-				{ value: "all", text: "全部显示（结果多时可能卡顿）" },
-			],
-			onChange: (value) => {
-				Config.set("mode", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".minPost",
-			name: "Danbooru 补全 - 最低 post_count（post_count 优先模式）",
-			type: "number",
-			defaultValue: 500,
-			onChange: (value) => {
-				Config.set("minPost", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".maxCount",
-			name: "Danbooru 补全 - 最大候选数（数量优先模式）",
-			type: "number",
-			defaultValue: 30,
-			onChange: (value) => {
-				Config.set("maxCount", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".imgMode",
-			name: "Danbooru 补全 - 示例图模式",
-			type: "combo",
-			defaultValue: "large",
-			options: [
-				{ value: "large", text: "大图 (850px)" },
-				{ value: "small", text: "缩略图 (180px，悬停看大图)" },
-			],
-			onChange: (value) => {
-				Config.set("imgMode", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".navMode",
-			name: "Danbooru 补全 - 导航模式",
-			type: "combo",
-			defaultValue: "A",
-			options: [
-				{ value: "A", text: "分栏展开（新链接右侧新开一栏）" },
-				{ value: "B", text: "替换（新链接替换当前栏）" },
-			],
-			onChange: (value) => {
-				Config.set("navMode", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".fuzzy",
-			name: "Danbooru 补全 - 匹配 wiki 正文",
-			type: "combo",
-			defaultValue: "always",
-			options: [
-				{ value: "off", text: "关" },
-				{ value: "fallback", text: "兜底（普通搜索无结果时匹配正文）" },
-				{ value: "always", text: "始终（正文命中追加在普通结果后）" },
-			],
-			onChange: (value) => {
-				Config.set("fuzzy", value);
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".widthMode",
-			name: "Danbooru 补全 - 宽度模式",
-			type: "combo",
-			defaultValue: "fit",
-			options: [
-				{ value: "fit", text: "撑开（随内容）" },
-				{ value: "fixed", text: "固定" },
-			],
-			onChange: (value) => {
-				Config.set("widthMode", value);
-				applyConfig();
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".width",
-			name: "Danbooru 补全 - 列表宽度 (px)",
-			type: "number",
-			defaultValue: 340,
-			onChange: (value) => {
-				Config.set("width", value);
-				applyConfig();
-			},
-		});
-
-		app.ui.settings.addSetting({
-			id: ID + ".font",
-			name: "Danbooru 补全 - 字号 (px)",
-			type: "number",
-			defaultValue: 13,
-			onChange: (value) => {
-				Config.set("font", value);
-				applyConfig();
 			},
 		});
 	},
