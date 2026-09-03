@@ -618,3 +618,36 @@
 	background: none;
 	cursor: pointer;
 }
+
+.dbtags-ac-styler-prev {
+	border: 1px dashed #565b66;
+	border-radius: 6px;
+	background: repeating-conic-gradient(#2c2e33 0% 25%, #26282d 0% 50%) 50% / 22px 22px;
+	padding: 10px;
+	display: flex;
+	align-items: flex-start;
+	overflow: auto;
+	max-height: 480px;
+}
+
+.dbtags-ac-preview-wrap {
+	position: relative;
+	max-height: 440px;
+}
+
+.dbtags-ac-fakeimg {
+	width: 100%;
+	height: 150px;
+	border-radius: 4px;
+	background: linear-gradient(135deg, #f6a5c5, #b78df0 45%, #7db9f0);
+}
+
+.dbtags-ac-styler-reset {
+	align-self: flex-start;
+	padding: 3px 10px;
+	border: 1px solid #565b66;
+	border-radius: 4px;
+	background: #1d1f23;
+	color: #d8dade;
+	cursor: pointer;
+}

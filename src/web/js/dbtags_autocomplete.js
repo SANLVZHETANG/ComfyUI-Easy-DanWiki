@@ -1334,6 +1334,7 @@ class Styler {
 			const c = getCustomColors();
 			custom.style.background = `linear-gradient(135deg, ${c.bg} 45%, ${c.highlight} 45%)`;
 		}
+		this.#syncPickers();
 	}
 
 	#buildControls() {
@@ -1398,9 +1399,89 @@ class Styler {
 	}
 
 	#buildPreview() {
+		const mk = (cls, kids) => $el("div." + cls, {}, kids);
+		const row = (name, count, zh, sel, fuzzy) => mk("dbtags-ac-item"
+			+ (sel ? " dbtags-ac-item--selected" : "")
+			+ (fuzzy ? " dbtags-ac-item--fuzzy" : ""), [
+			$el("span.dbtags-ac-name", { textContent: name }),
+			$el("span.dbtags-ac-count", { textContent: count }),
+			$el("span.dbtags-ac-zh", { textContent: zh }),
+		]);
+		const list = mk("dbtags-ac-list", [
+			row("1girl", "8.3M", "单女孩", true),
+			row("cherry_blossoms", "1.2M", "樱花"),
+			mk("dbtags-ac-item dbtags-ac-item--fuzzy", [
+				$el("span.dbtags-ac-name", { textContent: "rain umbrella" }),
+				$el("span.dbtags-ac-snippet", {}, [
+					"...她在雨中",
+					$el("span.dbtags-ac-snippet-hit", { textContent: "撑伞" }),
+					"回眸，背景是霓虹…" ,
+				]),
+			]),
+		]);
+		const summ = $el("div.dbtags-ac-panel-summary", {}, [
+			document.createTextNode("只包含一名女性角色的图像。另见 "),
+			$el("span.dbtags-ac-link", { textContent: "solo" }),
+			document.createTextNode(" 、 "),
+			$el("span.dbtags-ac-link.dbtags-ac-link--added", { textContent: "looking_at_viewer" }),
+			document.createTextNode(" 。示例图展示持伞回眸的猫耳少女，霓虹雨夜氛围。"),
+		]);
+		const panel = mk("dbtags-ac-panel", [
+			mk("dbtags-ac-panel-head", [
+				$el("div.dbtags-ac-panel-title", { textContent: "1girl  8.3M" }),
+				$el("span.dbtags-ac-plus", { textContent: "+" }),
+			]),
+			summ,
+			mk("dbtags-ac-panel-links", [
+				$el("span.dbtags-ac-link", { textContent: "+ cat_ears（猫耳）" }),
+				$el("span.dbtags-ac-link", { textContent: "+ holding_umbrella（撑伞）" }),
+			]),
+			$el("div.dbtags-ac-fakeimg"),
+		]);
+		const stack = mk("dbtags-ac-panelstack", [panel]);
+		this.prev.append(mk("dbtags-ac-wrap dbtags-ac-preview-wrap", [list, stack]));
 	}
 
 	#buildPickers() {
+		const c0 = getCustomColors();
+		for (const [k, label] of [
+			["bg", "列表底色"],
+			["bg2", "面板底色"],
+			["border", "边框"],
+			["text", "正文文字"],
+			["sub", "次要/中文"],
+			["highlight", "强调·链接"],
+			["count", "帖数计数"],
+			["fuzzy", "正文命中"],
+		]) {
+			const inp = $el("input", { type: "color" });
+			inp.value = c0[k];
+			inp.oninput = () => {
+				saveCustomColors({ ...getCustomColors(), [k]: inp.value });
+				this.#refreshSwatches();
+			};
+			this.colorInputs[k] = inp;
+			this.pickerBox.append($el("label.dbtags-ac-styler-pick", {}, [
+				inp, $el("span", { textContent: label }),
+			]));
+		}
+		this.pickerBox.append($el("button.dbtags-ac-styler-reset", {
+			textContent: "重置自定义配色",
+			onclick: () => {
+				saveCustomColors({ ...CUSTOM_DEFAULT });
+				this.#syncPickers();
+				this.#refreshSwatches();
+			},
+		}));
+		this.#syncPickers();
+	}
+
+	#syncPickers() {
+		const show = Config.get("theme", "dark") === "custom";
+		this.pickerBox.classList.toggle("dbtags-ac-styler-pickers--on", show);
+		if (!show) return;
+		const c = getCustomColors();
+		for (const [k, inp] of Object.entries(this.colorInputs)) inp.value = c[k];
 	}
 
 	#wireDrag(head) {
