@@ -1356,6 +1356,8 @@ class Styler {
 		applyConfig();
 		for (const ac of AC_INSTANCES) ac.refreshPrefs();
 		this.#syncPreviewPanel();
+		this.#syncModeRows();
+		this.#refreshPreviewPanel();
 		this.#labRefresh();
 	}
 
@@ -1390,6 +1392,51 @@ class Styler {
 		return $el("div.dbtags-ac-styler-row", {}, [
 			$el("span.dbtags-ac-styler-label", { textContent: label }), range, val,
 		]);
+	}
+
+	#numRow(label, key, dflt, suffix) {
+		const inp = $el("input.dbtags-ac-styler-num", { type: "number" });
+		inp.value = String(Config.getNum(key, dflt));
+		const row = $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: label }),
+			inp,
+			$el("span.dbtags-ac-styler-val", { textContent: suffix || "" }),
+		]);
+		inp.oninput = () => {
+			const v = parseInt(inp.value, 10);
+			if (!Number.isFinite(v) || v < 1) return;
+			this.#set(key, v);
+		};
+		return row;
+	}
+
+	#syncModeRows() {
+		if (!this.minPostRow || !this.maxCountRow) return;
+		const mode = Config.get("mode", "pc");
+		const setEn = (row, on) => {
+			row.style.opacity = on ? "" : "0.35";
+			for (const i of row.querySelectorAll("input")) i.disabled = !on;
+		};
+		setEn(this.minPostRow, mode === "pc");
+		setEn(this.maxCountRow, mode === "count");
+	}
+
+	#refreshPreviewPanel() {
+		if (!index) return;
+		const tag = getTagMap().get(normName("1girl")) || index.tags[0];
+		if (!tag) return;
+		this.pTitle.textContent = `${tag.name}  ${fmtCount(tag.post_count)}`;
+		this.pSummary.replaceChildren(
+			document.createTextNode(wikiText(tag).replace(/\[\[|\]\]/g, ""))
+		);
+		const pills = [];
+		for (const l of (tag.links || []).slice(0, 4)) {
+			const t = getTagMap().get(normName(l.n));
+			pills.push($el("span.dbtags-ac-link", {
+				textContent: t?.zhtag ? `${l.n}（${t.zhtag}）` : l.n,
+			}));
+		}
+		if (pills.length) this.pLinks.replaceChildren(...pills);
 	}
 
 	#group(title) {
@@ -1443,7 +1490,7 @@ class Styler {
 		const gSize = this.#group("尺寸与透明度");
 		gSize.append(
 			this.#sliderRow("透明度", "opacity", 25, 100, 100, (x) => x + "%"),
-			this.#sliderRow("字号", "font", 11, 18, 13, (x) => x + "px"),
+			this.#numRow("字号", "font", 13, "px"),
 			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
 			this.#sliderRow("列表宽度", "width", 240, 800, 340, (x) => x + "px"),
 		);
@@ -1455,15 +1502,18 @@ class Styler {
 			this.#comboRow("拼音命中", "pyMode", [["zh-first", "拼音结果靠前"], ["en-first", "英文结果靠前"], ["off", "关闭"]], "zh-first"),
 			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 4),
 			this.#comboRow("正文匹配", "fuzzy", [["always", "始终"], ["fallback", "兜底"], ["off", "关"]], "always"),
-			this.#sliderRow("最低post数", "minPost", 1, 2000, 500),
-			this.#sliderRow("最多候选数", "maxCount", 10, 60, 30),
 		);
 
 		const gMode = this.#group("候选与数据");
+		this.minPostRow = this.#numRow("最低post数", "minPost", 500);
+		this.maxCountRow = this.#numRow("最多候选数", "maxCount", 30);
 		gMode.append(
 			this.#comboRow("候选模式", "mode", [["pc", "post_count 优先（过滤低热度）"], ["count", "数量优先（最多 N 个）"], ["all", "全部显示（可能卡顿）"]], "pc"),
+			this.minPostRow,
+			this.maxCountRow,
 			this.#boolRow("调试日志", "debug"),
 		);
+		this.#syncModeRows();
 		this.dataHintEl = $el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() });
 		gMode.append(this.dataHintEl);
 		onIndexReady(() => {
@@ -1612,7 +1662,7 @@ class Styler {
 		this.labInput = $el("input.dbtags-ac-styler-lab-input", {
 			placeholder: "像平时一样打字试匹配：girl / 美 / cha / nan…",
 		});
-		this.labInput.value = "girl";
+		this.labInput.value = "cat girl";
 		this.labInput.oninput = () => this.#labRefresh();
 		this.labList = mk("dbtags-ac-list.dbtags-ac-styler-lab-list");
 		this.labStats = $el("div.dbtags-ac-styler-lab-stats");
@@ -1620,28 +1670,21 @@ class Styler {
 			$el("div.dbtags-ac-styler-lab-title", { textContent: "搜索试验台（与真实补全同一管线）" }),
 			this.labInput, this.labList, this.labStats,
 		]);
-		this.pSummary = $el("div.dbtags-ac-panel-summary", {}, [
-			document.createTextNode("只包含一名女性角色的图像。另见 "),
-			$el("span.dbtags-ac-link", { textContent: "solo" }),
-			document.createTextNode(" 、 "),
-			$el("span.dbtags-ac-link.dbtags-ac-link--added", { textContent: "looking_at_viewer" }),
-			document.createTextNode(" 。示例图展示持伞回眸的猫耳少女，霓虹雨夜氛围。"),
-		]);
-		this.pLinks = mk("dbtags-ac-panel-links", [
-			$el("span.dbtags-ac-link", { textContent: "+ cat_ears（猫耳）" }),
-			$el("span.dbtags-ac-link", { textContent: "+ holding_umbrella（撑伞）" }),
-		]);
+		this.pTitle = $el("div.dbtags-ac-panel-title", { textContent: "1girl  8.3M" });
+		this.pSummary = $el("div.dbtags-ac-panel-summary", { textContent: "（数据加载后显示真实词条）" });
+		this.pLinks = mk("dbtags-ac-panel-links", []);
 		this.pImg = $el("div.dbtags-ac-panel-img.dbtags-ac-fakeimg");
 		const panel = mk("dbtags-ac-panel", [
-			mk("dbtags-ac-panel-head", [
-				$el("div.dbtags-ac-panel-title", { textContent: "1girl  8.3M" }),
-				$el("span.dbtags-ac-plus", { textContent: "+" }),
-			]),
+			mk("dbtags-ac-panel-head", [this.pTitle, $el("span.dbtags-ac-plus", { textContent: "+" })]),
 			this.pSummary, this.pLinks, this.pImg,
 		]);
 		this.panelWrap = mk("dbtags-ac-wrap.dbtags-ac-preview-wrap", [mk("dbtags-ac-panelstack", [panel])]);
 		this.prev.append(lab, this.panelWrap);
 		this.#syncPreviewPanel();
+		this.#refreshPreviewPanel();
+		onIndexReady(() => {
+			if (this.pTitle?.isConnected) this.#refreshPreviewPanel();
+		});
 		this.#labRefresh();
 	}
 
