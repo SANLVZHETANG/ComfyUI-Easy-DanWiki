@@ -402,7 +402,7 @@
 }
 
 .dbtags-ac-panel-summary {
-	color: var(--dbtags-ac-sub);
+	color: var(--dbtags-ac-summary, var(--dbtags-ac-sub));
 	font-size: calc(var(--dbtags-ac-font) - 1px);
 	line-height: 1.5;
 	/* text owns all leftover height, scrolls on its own; image scales below */

@@ -58,6 +58,7 @@ const CUSTOM_DEFAULT = {
 	border: "#e38fba",
 	text: "#53263e",
 	sub: "#8b4e6d",
+	summary: "#8b4e6d",
 	highlight: "#ec62a1",
 	count: "#c34e81",
 	fuzzy: "#d77160",
@@ -65,6 +66,7 @@ const CUSTOM_DEFAULT = {
 const CUSTOM_INLINE_VARS = [
 	"--dbtags-ac-bg", "--dbtags-ac-bg-rgb", "--dbtags-ac-bg2", "--dbtags-ac-bg2-rgb",
 	"--dbtags-ac-border", "--dbtags-ac-text", "--dbtags-ac-sub", "--dbtags-ac-zh",
+	"--dbtags-ac-summary",
 	"--dbtags-ac-highlight", "--dbtags-ac-selected", "--dbtags-ac-count",
 	"--dbtags-ac-fuzzy", "--dbtags-ac-fuzzy-bg",
 ];
@@ -117,6 +119,7 @@ function applyConfig() {
 		set("--dbtags-ac-text", c.text);
 		set("--dbtags-ac-sub", c.sub);
 		set("--dbtags-ac-zh", c.sub);
+		set("--dbtags-ac-summary", c.summary);
 		set("--dbtags-ac-highlight", c.highlight);
 		set("--dbtags-ac-selected", hexRgb(c.highlight) ? `rgba(${hexRgb(c.highlight)}, 0.18)` : null);
 		set("--dbtags-ac-count", c.count);
@@ -1452,9 +1455,10 @@ class Styler {
 			["bg", "列表底色"],
 			["bg2", "面板底色"],
 			["border", "边框"],
-			["text", "正文文字"],
-			["sub", "次要/中文"],
-			["highlight", "强调·链接"],
+			["text", "标签/标题文字"],
+			["sub", "中文小字(列表)"],
+			["summary", "wiki 正文"],
+			["highlight", "链接/强调"],
 			["count", "帖数计数"],
 			["fuzzy", "正文命中"],
 		]) {
