@@ -1,0 +1,85 @@
+# v0.1-补全 — Danbooru 双语补全插件 大本营
+
+> 本目录是唯一维护源（源码 + 构建工具）。E 盘插件目录只是部署产物区，不要直接手改。
+
+## 目录角色
+
+| 位置 | 角色 | 读写约定 |
+|---|---|---|
+| `v0.1-补全\`（本目录） | 大本营：源码基线 + 构建工具 | 唯一可编辑处 |
+| `E:\ComfyUI\custom_nodes\danbooru-autocomplete\` | 部署产物区（ComfyUI 加载） | 只由 `tools\deploy.py` 写入 |
+| `G:\翻译器\` | 翻译上游数据源 | **只读** |
+| `Desktop\todo\danbooru-general-tags\` | 英文 wiki 源 + 示例图图库 + manifest | **只读**（后端供图指向此） |
+| `Desktop\todo\更人性化的comfyui补全+wiki爬取\` | 旧开发目录 | **退役封存**，不再使用 |
+
+## 数据流
+
+```
+G:\翻译器\clear_dantag_wiki.jsonl ──(英文源, 30442 条)──┐
+G:\翻译器\out\translations.jsonl ──(全量中文, 30442 条)──┼→ tools\build_index.py
+Desktop\todo\danbooru-general-tags\manifest.json (图) ──┘        │
+                                                                 ▼
+                     E:\...\danbooru-autocomplete\web\js\data\tags_index.json  (v3)
+```
+
+> v3 起不再产出 `fuzzy_index.json`：正文匹配改为前端运行时直接子串扫描 `summary + wiki_zh`
+> （预构建 9.8MB 小写文档，每次按键 ~10ms），原「模糊搜索词表索引」与「`[短语]` 精确搜索」均已移除。
+
+两条数据源 `name` 集合已验证 100% 对齐（30442 ∩ 30442，零缺失）。
+
+## 索引字段契约（tags_index.json v3，每条）
+
+| 字段 | 类型 | 来源 | 说明 |
+|---|---|---|---|
+| `name` | str | 英文源 | 英文标签，跳转/插入用，恒英文 |
+| `post_count` | int | 英文源 | 热度 |
+| `zh` | list | 英文源 other_names | 清洗后的源站中文别名（兜底） |
+| `aliases` | list | 英文源 | 全部源站别名（英/日…，参与匹配） |
+| `summary` | str | 英文源 body | 英文摘要，截 300 字，保留 `[[..]]` |
+| `zhtag` | str | 翻译库 `name_cn` | 中文标签名（下拉显示 + 中文搜索） |
+| `aliases_zh` | list | 翻译库 `aliases_cn` | 中文别名（搜索匹配） |
+| `wiki_zh` | str | 翻译库 `body_cn` | 中文正文，截 800 字；**空正文条目不写此字段**（前端回退英文） |
+| `py` | list | 构建期 pypinyin | 与 `[zhtag]+aliases_zh+zh`（去空值）**逐位平行**的无声调全拼小写串；JS 端以同一顺序重建原词，故不重复存中文 |
+| `images` | list | manifest | [small, large] 相对路径 |
+| `links` | list | 英文源 body | `[{n: 英文target, t: 显示词}]` |
+
+> 构建拼音需要 `pip install pypinyin`（仅大本营构建环境，前端零依赖）。
+> 多音字取词组语境读音（长袜→changwa 正确）；另一读法（zhangwa）不收录，如需要可在构建脚本加人工读音表。
+
+### 链接标记硬规则（来自 G:\翻译器\out\README.md 契约）
+
+- 正文内链接形态：`[[target]]` / `[[target|display]]` / `[[target|]]`（空显示合法）
+- `target` **恒为英文**，是跳转依据；构建与渲染阶段**原样保留标记，不得改写**
+- 前端渲染中文模式下 chip 双显：`中文 (english)`，中文优先取 display，空则查目标 tag 的 `zhtag`
+
+## 构建 / 部署命令
+
+```bash
+# 冒烟（前 300 条，产物写 smoke\，检查产物结构）
+python tools\build_index.py --limit 300 --out-dir smoke
+
+# 全量重建（直接写 E 盘 data 目录）
+python tools\build_index.py --limit 0
+
+# 部署 src → E 盘插件（阶段 4 提供）
+python tools\deploy.py
+```
+
+## 前端设置项（JS，均存 localStorage `dbtags.autocomplete.*`）
+
+| 设置 | 取值 | 默认 | 行为 |
+|---|---|---|---|
+| 主题 `theme` | `dark` / `light` / `pink` | `dark` | 黑灰 / 米白 / 喵粉（同色系樱花粉降饱和版：玫红计数+粉紫链接，列表/面板轻分层）；CSS 变量整套换色 |
+| 弹窗透明度 `opacity` | 25–100（%） | 100 | 仅列表/wiki 弹窗/提示条的**背景**半透明（文字保持实心），带毛玻璃 blur |
+| 显示语言 `lang` | `zh` / `en` | `zh` | zh：面板用 `wiki_zh`（无则回退英文 summary），下拉带中文标签；en：全英形态 |
+| 中文别名表 `aliasTable` | 开/关 | 开 | 中文搜索命中层级 `zhtag > aliases_zh > zh`；关=仅 `zhtag`。中文查询**从不**扫日文 `aliases`（防"巨大→巨大ヒロイン"类误命中） |
+| 拼音搜索 `pyMode` | `zh-first` / `en-first` / `off` | `zh-first` | 纯字母输入按 `py` 匹配中文；zh-first 拼音层插在 英文name 与 alias 之间，en-first 垫底。精确/前缀英文名在两种模式下都优先于拼音 |
+| 拼音触发长度 `pyMinLen` | 数字 | 4 | 字母数低于此值不触发拼音（防 2-3 字母噪音） |
+| 匹配wiki正文 `fuzzy` | `always` / `fallback` / `off` | `always` | 整个查询作为子串匹配 `summary+wiki_zh` 正文（中英皆可，英文≥3字/中文≥2字）；always=追加在普通结果后（去重，上限30），fallback=普通无结果时才匹配。命中行显示正文摘录。**原 `[短语]` 精确搜索模式已删除**，方括号被忽略 |
+| 右侧wiki面板 `showWiki` | 开/关 | 开 | 关=只留候选列表下拉（正文匹配、悬停摘录预览仍有效） |
+| 面板内容 `showSummary`/`showImage`/`showLinks` | 开/关 | 开 | 释义正文 / 示例图 / 关联标签胶囊（跳转）；全部在设置里控制，浮窗内无按钮 |
+| 面板布局 `panelImg` | 开/关 | 关 | 关=文字优先：释义占满剩余高度独立滚动，示例图自动缩放封顶 `min(220px, 34vh)`，空间不足先挤图片；开=图片优先：图片按面板宽完整展示（封顶 `min(78vh, 900px)`，基本免滚动看全图），释义≤140px、整栏滚动。点击图片=新标签打开原图 |
+| 括号键导航 `bracketNav` | 开/关 | 开 | 候选框打开时 `[`=上移、`]`=下移焦点条目（Enter/Tab 插入）；关闭则 `[ ]` 正常输入字符 |
+
+拼音/别名命中在下拉里以小灰字显示实际命中的中文词（悬停 title 标注来源层）。
+搜索语言无关性：任何显示模式下英文输入匹配 name/aliases(+py)，中文输入匹配 zhtag/aliases_zh/zh，正文匹配中英通吃。

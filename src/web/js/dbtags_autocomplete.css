@@ -1,0 +1,462 @@
+/* Danbooru autocomplete overlay. Theme via CSS variables (P6 presets). */
+:root,
+:root.dbtags-theme-dark {
+	/* 深色（黑灰，不太黑） */
+	--dbtags-ac-bg: #33383f;
+	--dbtags-ac-bg-rgb: 51, 56, 63;
+	--dbtags-ac-bg2: #33383f;
+	--dbtags-ac-bg2-rgb: 51, 56, 63;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #7a8394;
+	--dbtags-ac-text: #e6e6e6;
+	--dbtags-ac-sub: #b5bac2;
+	--dbtags-ac-highlight: #4da3ff;
+	--dbtags-ac-selected: rgba(77, 163, 255, 0.16);
+	--dbtags-ac-count: #a8c6a8;
+	--dbtags-ac-zh: #b5bac2;
+	--dbtags-ac-fuzzy: #e0a94e;
+	--dbtags-ac-fuzzy-bg: rgba(224, 169, 78, 0.12);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.12);
+	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.08);
+	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.18);
+}
+
+:root.dbtags-theme-light {
+	/* 浅色（米白，不太白） */
+	--dbtags-ac-bg: #f1eee9;
+	--dbtags-ac-bg-rgb: 241, 238, 233;
+	--dbtags-ac-bg2: #f7f5f1;
+	--dbtags-ac-bg2-rgb: 247, 245, 241;
+	--dbtags-ac-border: #bdb6a8;
+	--dbtags-ac-text: #3b3b3b;
+	--dbtags-ac-sub: #6f6f6f;
+	--dbtags-ac-highlight: #1e6fd9;
+	--dbtags-ac-selected: rgba(30, 111, 217, 0.12);
+	--dbtags-ac-count: #4d7a4d;
+	--dbtags-ac-zh: #6f6f6f;
+	--dbtags-ac-fuzzy: #a06a1f;
+	--dbtags-ac-fuzzy-bg: rgba(160, 106, 31, 0.12);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(0, 0, 0, 0.08);
+	--dbtags-ac-toggle-bg: rgba(0, 0, 0, 0.06);
+	--dbtags-ac-toggle-hover: rgba(0, 0, 0, 0.12);
+}
+
+:root.dbtags-theme-pink {
+	/* 喵粉（nya~）：v1 同色系，整体降一档饱和度，面板/列表轻分层 */
+	--dbtags-ac-bg: #f8e7ee;
+	--dbtags-ac-bg-rgb: 248, 231, 238;
+	--dbtags-ac-bg2: #fdf0f5;
+	--dbtags-ac-bg2-rgb: 253, 240, 245;
+	--dbtags-ac-border: #e38fba;
+	--dbtags-ac-text: #53263e;
+	--dbtags-ac-sub: #8b4e6d;
+	--dbtags-ac-highlight: #ec62a1;
+	--dbtags-ac-selected: rgba(236, 98, 161, 0.18);
+	--dbtags-ac-count: #c34e81;
+	--dbtags-ac-zh: #8b4e6d;
+	--dbtags-ac-fuzzy: #d77160;
+	--dbtags-ac-fuzzy-bg: rgba(215, 113, 96, 0.14);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.62);
+	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.5);
+	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.75);
+}
+
+/* frosted glass when translucent */
+.dbtags-ac-list,
+.dbtags-ac-panel {
+	backdrop-filter: blur(4px);
+}
+
+.dbtags-ac-wrap {
+	position: absolute;
+	z-index: 9999;
+	display: flex;
+	align-items: stretch;
+}
+
+.dbtags-ac-list {
+	position: relative; /* anchor for manual scrollTop (no scrollIntoView: it drags the document) */
+	background: rgba(var(--dbtags-ac-bg-rgb), var(--dbtags-ac-alpha));
+	border: 1px solid var(--dbtags-ac-border);
+	box-shadow: none;
+	color: var(--dbtags-ac-text);
+	font-family: sans-serif;
+	font-size: var(--dbtags-ac-font);
+	/* fit mode (default): min-width only, content may widen the list */
+	min-width: var(--dbtags-ac-width);
+	max-height: inherit;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+/* fixed mode: exact width, rows truncate */
+:root.dbtags-width-fixed .dbtags-ac-list {
+	width: var(--dbtags-ac-width);
+	min-width: var(--dbtags-ac-width);
+}
+
+.dbtags-ac-list::-webkit-scrollbar {
+	width: 10px;
+}
+
+.dbtags-ac-list::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.15);
+}
+
+.dbtags-ac-list::-webkit-scrollbar-thumb {
+	background: var(--dbtags-ac-border);
+	border-radius: 5px;
+	border: 2px solid var(--dbtags-ac-bg);
+}
+
+.dbtags-ac-list::-webkit-scrollbar-thumb:hover {
+	background: var(--dbtags-ac-highlight);
+}
+
+.dbtags-ac-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 7px;
+	cursor: pointer;
+	line-height: var(--dbtags-ac-row-height);
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+.dbtags-ac-item--selected {
+	background: var(--dbtags-ac-selected);
+	border-left: 3px solid var(--dbtags-ac-highlight);
+	padding-left: 4px;
+}
+
+.dbtags-ac-name {
+	flex: 1 1 auto;
+	min-width: 100px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dbtags-ac-highlight {
+	font-weight: bold;
+	text-decoration: underline;
+	text-decoration-color: var(--dbtags-ac-highlight);
+}
+
+.dbtags-ac-count {
+	font-size: 10px;
+	color: var(--dbtags-ac-count);
+	background: var(--dbtags-ac-pill-bg);
+	border-radius: 5px;
+	padding: 1px 5px;
+}
+
+.dbtags-ac-zh {
+	font-size: 11px;
+	color: var(--dbtags-ac-zh);
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dbtags-ac-zh--hit {
+	color: var(--dbtags-ac-text);
+	font-weight: bold;
+}
+
+/* small muted hint: the alias that actually matched the query */
+.dbtags-ac-zh-src {
+	font-size: 10px;
+	color: var(--dbtags-ac-count);
+	opacity: 0.7;
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* fuzzy wiki-content match row + snippet */
+.dbtags-ac-item--fuzzy {
+	background: var(--dbtags-ac-fuzzy-bg);
+}
+
+.dbtags-ac-empty {
+	padding: 8px 12px;
+	color: var(--dbtags-ac-sub);
+	font-size: calc(var(--dbtags-ac-font) - 1px);
+	font-style: italic;
+	white-space: nowrap;
+}
+
+.dbtags-ac-snippet {
+	font-size: calc(var(--dbtags-ac-font) - 2px);
+	color: var(--dbtags-ac-fuzzy);
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-style: italic;
+}
+
+/* highlighter effect for the matched phrase inside a wiki snippet */
+.dbtags-ac-snippet-hit {
+	font-style: normal;
+	font-weight: bold;
+	background: rgba(255, 213, 79, 0.35);
+	border-radius: 2px;
+	padding: 0 1px;
+}
+
+/* ---- info panel ---- */
+.dbtags-ac-panelstack {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	max-width: calc(100vw - 360px);
+	overflow-x: auto;
+	overscroll-behavior: contain;
+}
+
+.dbtags-ac-panelstack .dbtags-ac-panel {
+	flex: 0 0 auto;
+}
+
+.dbtags-ac-panel {
+	width: var(--dbtags-ac-panel-width);
+	max-height: inherit;
+	overflow: hidden;
+	background: rgba(var(--dbtags-ac-bg2-rgb), var(--dbtags-ac-alpha));
+	border: 1px solid var(--dbtags-ac-border);
+	border-left: none;
+	box-shadow: none;
+	color: var(--dbtags-ac-text);
+	font-family: sans-serif;
+	font-size: var(--dbtags-ac-font);
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.dbtags-ac-panel-title {
+	font-weight: bold;
+	font-size: 13px;
+	word-break: break-all;
+}
+
+.dbtags-ac-panel-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+}
+
+.dbtags-ac-panel-head .dbtags-ac-panel-title {
+	flex: 1;
+}
+
+.dbtags-ac-back,
+.dbtags-ac-close {
+	font-family: sans-serif;
+	font-size: 11px;
+	padding: 1px 8px;
+	cursor: pointer;
+	color: var(--dbtags-ac-text);
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+
+.dbtags-ac-back:hover,
+.dbtags-ac-close:hover {
+	background: var(--dbtags-ac-toggle-hover);
+}
+
+.dbtags-ac-close {
+	padding: 0 7px;
+	font-size: 13px;
+	line-height: 16px;
+}
+
+/* related-tag links (P14) */
+.dbtags-ac-panel-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	flex: 0 0 auto;
+	max-height: 30vh;
+	overflow-y: auto;
+}
+
+.dbtags-ac-link {
+	display: inline-block;
+	font-size: calc(var(--dbtags-ac-font) - 1px);
+	color: var(--dbtags-ac-highlight);
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 10px;
+	padding: 0 7px;
+	cursor: pointer;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: baseline;
+}
+
+.dbtags-ac-link:hover {
+	background: var(--dbtags-ac-toggle-hover);
+	text-decoration: underline;
+}
+
+.dbtags-ac-link-en {
+	opacity: 0.55;
+	font-size: calc(var(--dbtags-ac-font) - 3px);
+}
+
+.dbtags-ac-plus {
+	cursor: pointer;
+	font-weight: bold;
+	margin-right: 3px;
+	color: var(--dbtags-ac-count);
+	font-size: calc(var(--dbtags-ac-font) + 3px);
+	padding: 1px 3px;
+	line-height: 1;
+}
+
+.dbtags-ac-plus:hover {
+	color: var(--dbtags-ac-highlight);
+}
+
+.dbtags-ac-link--added {
+	opacity: 0.55;
+	color: var(--dbtags-ac-sub);
+}
+
+.dbtags-ac-added-tip {
+	font-size: 10px;
+	color: var(--dbtags-ac-count);
+	margin-left: 3px;
+}
+
+/* links inside the wiki body: plain text links, same size as the text */
+.dbtags-ac-panel-summary .dbtags-ac-link {
+	display: inline;
+	font-size: inherit;
+	background: none;
+	border: none;
+	border-radius: 0;
+	padding: 0;
+	text-decoration: underline;
+	white-space: normal;
+	vertical-align: baseline;
+}
+
+.dbtags-ac-panel-summary .dbtags-ac-link:hover {
+	background: var(--dbtags-ac-selected);
+}
+
+/* hover preview tooltip (P14) — display only, never intercept clicks */
+.dbtags-ac-preview {
+	position: fixed;
+	z-index: 10001;
+	display: none;
+	width: 240px;
+	background: rgba(var(--dbtags-ac-bg2-rgb), var(--dbtags-ac-alpha));
+	border: 1px solid var(--dbtags-ac-border);
+	box-shadow: none;
+	color: var(--dbtags-ac-text);
+	font-family: sans-serif;
+	font-size: 12px;
+	padding: 6px 10px;
+	border-radius: 4px;
+	pointer-events: none;
+}
+
+.dbtags-ac-preview-title {
+	font-weight: bold;
+	margin-bottom: 4px;
+	word-break: break-all;
+}
+
+.dbtags-ac-preview-text {
+	color: var(--dbtags-ac-sub);
+	line-height: 1.4;
+	word-break: break-word;
+}
+
+.dbtags-ac-panel-summary {
+	color: var(--dbtags-ac-sub);
+	font-size: calc(var(--dbtags-ac-font) - 1px);
+	line-height: 1.5;
+	/* text owns all leftover height, scrolls on its own; image scales below */
+	flex: 1 1 auto;
+	min-height: 2.5em;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	word-break: break-word;
+}
+
+.dbtags-ac-panel-img {
+	max-width: 100%;
+	/* auto-scale: the image never eats more than a third of the panel height */
+	max-height: min(220px, 34vh);
+	object-fit: contain;
+	border-radius: 4px;
+	flex: 0 3 auto;
+	min-height: 0;
+	align-self: center;
+	cursor: zoom-in;
+}
+
+/* ---- image-priority layout (setting panelImg): old fixed quotas, whole panel scrolls ---- */
+.dbtags-ac-imgprior .dbtags-ac-panel {
+	overflow-y: auto;
+}
+
+.dbtags-ac-imgprior .dbtags-ac-panel-summary {
+	flex: 0 0 auto;
+	min-height: 0;
+	max-height: 140px;
+}
+
+.dbtags-ac-imgprior .dbtags-ac-panel-img {
+	/* image-priority = show the whole image: scale to panel width, tall viewport cap */
+	width: 100%;
+	max-height: min(78vh, 900px);
+	object-fit: contain;
+	flex: 0 0 auto;
+}
+
+/* ---- error bar (P7) ---- */
+.dbtags-errbar {
+	position: fixed;
+	top: 10px;
+	right: 10px;
+	z-index: 10000;
+	background: #c0392b;
+	color: #fff;
+	font-family: sans-serif;
+	font-size: 12px;
+	padding: 8px 14px;
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+	max-width: 60vw;
+	word-break: break-word;
+}
