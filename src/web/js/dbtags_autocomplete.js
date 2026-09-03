@@ -22,6 +22,11 @@ const DEBUG = new URLSearchParams(location.search).has("dbtags_debug") ||
 		localStorage.getItem(ID + ".debug") === "true";
 
 let index = null;
+const _indexReadyCbs = [];
+function onIndexReady(cb) {
+	if (index) cb();
+	else _indexReadyCbs.push(cb);
+}
 let TAG_MAP = null;
 
 function getTagMap() {
@@ -1245,6 +1250,13 @@ async function loadIndex() {
 	}
 	index = await resp.json();
 	dlog("C", `index loaded: ${index.count} tags, ${Math.round(performance.now() - t0)}ms`);
+	for (const cb of _indexReadyCbs.splice(0)) {
+		try {
+			cb();
+		} catch {
+			void 0;
+		}
+	}
 	return true;
 }
 
@@ -1452,7 +1464,11 @@ class Styler {
 			this.#comboRow("候选模式", "mode", [["pc", "post_count 优先（过滤低热度）"], ["count", "数量优先（最多 N 个）"], ["all", "全部显示（可能卡顿）"]], "pc"),
 			this.#boolRow("调试日志", "debug"),
 		);
-		gMode.append($el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() }));
+		this.dataHintEl = $el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() });
+		gMode.append(this.dataHintEl);
+		onIndexReady(() => {
+			if (this.dataHintEl?.isConnected) this.dataHintEl.textContent = this.#dataInfo();
+		});
 
 		const gPanel = this.#group("wiki 面板");
 		gPanel.append(
@@ -1635,6 +1651,12 @@ class Styler {
 		if (!term) {
 			this.labList.replaceChildren();
 			this.labStats.textContent = "输入以测试";
+			return;
+		}
+		if (!index) {
+			this.labList.replaceChildren();
+			this.labStats.textContent = "数据加载中…（就绪后自动刷新）";
+			onIndexReady(() => this.#labRefresh());
 			return;
 		}
 		const word = term.replace(/\s+/g, "_");
