@@ -585,17 +585,31 @@ class DBTagsAutoComplete {
 		this._previewTimer = null;
 		this._toastEl = null;
 		this._toastTimer = null;
-		this.el.addEventListener("keydown", this.#onKeyDown.bind(this));
-		this.el.addEventListener("keyup", this.#onKeyUp.bind(this));
-		this.el.addEventListener("click", this.#hide.bind(this));
-		this.el.addEventListener("blur", () =>
+		this._hKeydown = this.#onKeyDown.bind(this);
+		this._hKeyup = this.#onKeyUp.bind(this);
+		this._hClick = this.#hide.bind(this);
+		this._hBlur = () =>
 			setTimeout(() => {
 				// keep open when the click landed inside our own UI (toggles, image)
 				if (this._lastDownTarget && this.wrap.contains(this._lastDownTarget)) return;
 				this.#hide();
-			}, 150)
-		);
-		document.addEventListener("mousedown", this.#onDocDown.bind(this));
+			}, 150);
+		this._hDocDown = this.#onDocDown.bind(this);
+		this.el.addEventListener("keydown", this._hKeydown);
+		this.el.addEventListener("keyup", this._hKeyup);
+		this.el.addEventListener("click", this._hClick);
+		this.el.addEventListener("blur", this._hBlur);
+		document.addEventListener("mousedown", this._hDocDown);
+	}
+
+	destroy() {
+		AC_INSTANCES.delete(this);
+		this.el.removeEventListener("keydown", this._hKeydown);
+		this.el.removeEventListener("keyup", this._hKeyup);
+		this.el.removeEventListener("click", this._hClick);
+		this.el.removeEventListener("blur", this._hBlur);
+		document.removeEventListener("mousedown", this._hDocDown);
+		this.wrap?.remove();
 	}
 
 	#createPanel(isNav) {
@@ -1346,6 +1360,8 @@ class Styler {
 	}
 
 	close() {
+		this.demoAC?.destroy();
+		this.demoAC = null;
 		this.el.remove();
 		_styler = null;
 	}
@@ -1408,6 +1424,27 @@ class Styler {
 			this.#set(key, v);
 		};
 		return row;
+	}
+
+	#numSliderRow(label, key, min, max, dflt, suffix) {
+		const range = $el("input.dbtags-ac-styler-slider", { type: "range", min: String(min), max: String(max) });
+		const num = $el("input.dbtags-ac-styler-num", { type: "number" });
+		range.value = String(Config.getNum(key, dflt));
+		num.value = range.value;
+		const val = $el("span.dbtags-ac-styler-val", { textContent: suffix || "" });
+		range.oninput = () => {
+			num.value = range.value;
+			this.#set(key, parseInt(range.value, 10));
+		};
+		num.oninput = () => {
+			const v = parseInt(num.value, 10);
+			if (!Number.isFinite(v) || v < 1) return;
+			range.value = String(Math.min(Math.max(v, min), max));
+			this.#set(key, v);
+		};
+		return $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: label }), range, num, val,
+		]);
 	}
 
 	#syncModeRows() {
@@ -1492,7 +1529,7 @@ class Styler {
 			this.#sliderRow("透明度", "opacity", 25, 100, 100, (x) => x + "%"),
 			this.#numRow("字号", "font", 13, "px"),
 			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
-			this.#sliderRow("列表宽度", "width", 240, 800, 340, (x) => x + "px"),
+			this.#numSliderRow("列表宽度", "width", 240, 800, 340, "px"),
 		);
 
 		const gMatch = this.#group("匹配与搜索");
@@ -1521,6 +1558,7 @@ class Styler {
 		});
 
 		const gPanel = this.#group("wiki 面板");
+		this.gPanel = gPanel;
 		gPanel.append(
 			this.#boolRow("打开面板", "showWiki"),
 			this.#boolRow("释义", "showSummary"),
@@ -1679,7 +1717,16 @@ class Styler {
 			this.pSummary, this.pLinks, this.pImg,
 		]);
 		this.panelWrap = mk("dbtags-ac-wrap.dbtags-ac-preview-wrap", [mk("dbtags-ac-panelstack", [panel])]);
-		this.prev.append(lab, this.panelWrap);
+		this.demoInput = $el("input.dbtags-ac-styler-demo-input", {
+			placeholder: "在此打字实测：候选、方向键、[ ] 跳转展开、面板位置…",
+			autocomplete: "off",
+		});
+		this.demoAC = new DBTagsAutoComplete(this.demoInput, { name: "styler-demo", type: "COMBO", options: {} });
+		const demo = $el("div.dbtags-ac-styler-lab", {}, [
+			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（下方/右侧面板设置即时生效）" }),
+			this.demoInput,
+		]);
+		this.prev.append(demo, this.panelWrap, this.gPanel, lab);
 		this.#syncPreviewPanel();
 		this.#refreshPreviewPanel();
 		onIndexReady(() => {

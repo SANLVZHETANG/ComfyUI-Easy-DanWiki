@@ -81,7 +81,7 @@
 
 .dbtags-ac-wrap {
 	position: absolute;
-	z-index: 9999;
+	z-index: 10010;
 	display: flex;
 	align-items: stretch;
 }
@@ -721,4 +721,20 @@
 	font-size: 11px;
 	font-family: monospace;
 	resize: vertical;
+}
+
+.dbtags-ac-styler-slider {
+	flex: 1;
+	min-width: 0;
+}
+
+.dbtags-ac-styler-demo-input {
+	width: 100%;
+	box-sizing: border-box;
+	background: var(--dbtags-ac-bg2);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	color: var(--dbtags-ac-text);
+	font-size: var(--dbtags-ac-font);
+	padding: 4px 6px;
 }
