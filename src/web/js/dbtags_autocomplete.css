@@ -467,8 +467,8 @@
 	z-index: 10001;
 	display: flex;
 	flex-direction: column;
-	width: 860px;
-	max-height: 86vh;
+	width: min(1240px, 96vw);
+	max-height: 88vh;
 	background: #26282d;
 	border: 1px solid #565b66;
 	border-radius: 8px;
@@ -509,7 +509,7 @@
 }
 
 .dbtags-ac-styler-ctrl {
-	flex: 0 0 390px;
+	flex: 0 0 430px;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -625,14 +625,38 @@
 	background: repeating-conic-gradient(#2c2e33 0% 25%, #26282d 0% 50%) 50% / 22px 22px;
 	padding: 10px;
 	display: flex;
-	align-items: flex-start;
-	overflow: auto;
-	max-height: 480px;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 10px;
+	overflow: hidden;
 }
 
 .dbtags-ac-preview-wrap {
 	position: relative;
-	max-height: 440px;
+	width: 100%;
+	max-height: 460px;
+	overflow: hidden;
+}
+
+.dbtags-ac-styler-lab {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.dbtags-ac-styler-lab-input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.dbtags-ac-styler-num {
+	flex: 1;
+	min-width: 0;
+	background: #1d1f23;
+	border: 1px solid #565b66;
+	border-radius: 4px;
+	color: #d8dade;
+	font-size: 12px;
+	padding: 2px 6px;
 }
 
 .dbtags-ac-fakeimg {

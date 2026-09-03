@@ -1781,19 +1781,36 @@ app.registerExtension({
 		// (storage keys unchanged, existing values keep working)
 		app.ui.settings.addSetting({
 			id: ID + ".openStyler",
-			name: "Danbooru 补全 - 外观定制器",
-			type: "combo",
-			defaultValue: "",
-			options: [
-				{ value: "", text: "（选择以打开）" },
-				{ value: "open", text: "打开外观定制器" },
-			],
+			name: "Danbooru 补全 - 外观定制器（勾选即打开，弹回原状）",
+			type: "boolean",
+			defaultValue: false,
 			onChange: (value) => {
-				if (value !== "open") return;
+				if (!value) return;
 				openStyler();
-				try { app.ui.settings.setSettingValue?.(ID + ".openStyler", ""); } catch { void 0; }
+				try { app.ui.settings.setSettingValue?.(ID + ".openStyler", false); } catch { void 0; }
 			},
 		});
+
+		try {
+			app.command?.add?.("DbTagsAutocomplete.OpenStyler", {
+				name: "Danbooru 补全：打开外观定制器",
+				description: "打开 danbooru 补全的外观与行为设置窗口",
+				function: () => openStyler(),
+			});
+		} catch {
+			void 0;
+		}
+		try {
+			app.menu?.addSettingsMenu?.({
+				id: "dbtags.openStyler.menu",
+				title: "Danbooru 补全 - 外观定制器",
+				label: "Danbooru 补全 - 外观定制器",
+				icon: "pi pi-palette",
+				callback: () => openStyler(),
+			});
+		} catch {
+			void 0;
+		}
 	},
 	async setup() {
 		dlog("C", "extension loaded");
