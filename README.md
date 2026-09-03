@@ -65,7 +65,9 @@ python tools\build_index.py --limit 0
 python tools\deploy.py
 ```
 
-## 前端设置项（JS，均存 localStorage `dbtags.autocomplete.*`）
+## 设置（统一入口：外观定制器）
+
+Comfy 设置面板里只剩一项「Danbooru 补全 - 外观定制器」入口；全部设置在定制器窗内调节（可拖拽，右列实时预览）。下表键仍存 localStorage `dbtags.autocomplete.*`（老配置无缝继承），也是导出/导入 JSON 的字段：
 
 | 设置 | 取值 | 默认 | 行为 |
 |---|---|---|---|
@@ -94,3 +96,9 @@ python tools\deploy.py
 - **面板**：开关矩阵 + 图片模式/跳转方式/括号导航
 
 所有控件直写既有 `dbtags.autocomplete.*` 键并即时 `applyConfig + refreshPrefs`，与设置面板双向兼容；custom 主题以 root 内联变量生效（优先级压过主题 class 块，切回内置主题自动清除）。
+
+**搜索试验台**：预览区顶部的输入框走 `runQuery`（与真实补全完全同一管线，含 `applyLimit`/`bodySearch` 合并），改「最低post数/候选模式/最多候选数/拼音」等任何匹配参数立刻能在结果行和底部统计里看到效果（命中数 / 显示数 / 被热度过滤数 / 正文匹配数）。Comfy 设置面板原有 20+ 项已收编进本窗口，只保留这一条入口。
+
+**数据信息行**：「候选与数据」组底部显示 `数据：v版本 · 30442 标签 · 源站热度下限 51 · 构建时间`——最低post数低于 51 时不再增加结果（上游导出即过滤），解释"设了 50 却没更多候选"的假象。
+
+**导出/导入**：`{ schema: "dbtags-styler/1", settings: {全部键值}, theme_desc: {每色语义+对比度约束说明} }`。`theme_desc` 是给 AI 看的配色说明书——把导出 JSON 丢给 AI 让它改 `settings.customVars` 里的颜色再粘贴回来「应用」即可完成换肤；文件/剪贴板/文本框三种路径，未知键忽略并提示。

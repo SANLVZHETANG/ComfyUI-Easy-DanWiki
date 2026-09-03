@@ -1516,6 +1516,11 @@ class Styler {
 	#exportJson() {
 		const settings = {};
 		for (const k of Object.keys(SETTING_DEFS)) settings[k] = Config.get(k, SETTING_DEFS[k]);
+		try {
+			settings.customVars = JSON.parse(Config.get("customVars", "")) || "";
+		} catch {
+			settings.customVars = "";
+		}
 		return JSON.stringify({
 			schema: "dbtags-styler/1",
 			exported: new Date().toISOString().slice(0, 10),
