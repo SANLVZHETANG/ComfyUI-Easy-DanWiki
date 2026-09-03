@@ -1237,6 +1237,111 @@ async function loadIndex() {
 	return true;
 }
 
+/* ================= appearance styler (P16) ================= */
+let _styler = null;
+
+function openStyler() {
+	if (_styler) {
+		_styler.el.style.zIndex = "10002";
+		return;
+	}
+	_styler = new Styler();
+}
+
+class Styler {
+	constructor() {
+		this.swatchEls = [];
+		this.colorInputs = {};
+		this.el = $el("div.dbtags-ac-styler");
+		const head = $el("div.dbtags-ac-styler-head", { textContent: "外观定制器" });
+		head.append($el("button.dbtags-ac-close", {
+			textContent: "×",
+			title: "关闭",
+			onclick: () => this.close(),
+		}));
+		this.body = $el("div.dbtags-ac-styler-body");
+		this.ctrl = $el("div.dbtags-ac-styler-ctrl");
+		this.prev = $el("div.dbtags-ac-styler-prev");
+		this.body.append(this.ctrl, this.prev);
+		this.el.append(head, this.body);
+		this.#buildControls();
+		this.#buildPreview();
+		document.body.append(this.el);
+		this.el.style.left = Math.max(8, (window.innerWidth - 860) / 2) + "px";
+		this.el.style.top = "56px";
+		this.#wireDrag(head);
+	}
+
+	close() {
+		this.el.remove();
+		_styler = null;
+	}
+
+	/* every control write funnels through here: store -> re-apply -> live everywhere */
+	#set(key, value) {
+		Config.set(key, String(value));
+		applyConfig();
+		for (const ac of AC_INSTANCES) ac.refreshPrefs();
+	}
+
+	#comboRow(label, key, options, dflt) {
+		const sel = $el("select");
+		for (const [v, t] of options) {
+			sel.append($el("option", { value: v, textContent: t }));
+		}
+		sel.value = Config.get(key, dflt);
+		sel.onchange = () => this.#set(key, sel.value);
+		return $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: label }), sel,
+		]);
+	}
+
+	#boolRow(label, key) {
+		const cb = $el("input", { type: "checkbox" });
+		cb.checked = Config.get(key, "true") !== "false";
+		cb.onchange = () => this.#set(key, cb.checked);
+		return $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: label }), cb,
+		]);
+	}
+
+	#sliderRow(label, key, min, max, dflt, fmt) {
+		const range = $el("input", { type: "range", min: String(min), max: String(max) });
+		range.value = String(Config.getNum(key, dflt));
+		const val = $el("span.dbtags-ac-styler-val");
+		const show = () => val.textContent = (fmt || ((x) => x + ""))(range.value);
+		range.oninput = () => { show(); this.#set(key, range.value); };
+		show();
+		return $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: label }), range, val,
+		]);
+	}
+
+	#buildControls() {
+	}
+
+	#buildPreview() {
+	}
+
+	#wireDrag(head) {
+		let sx = 0, sy = 0, ox = 0, oy = 0, on = false;
+		head.addEventListener("pointerdown", (e) => {
+			if (e.target.closest("button")) return;
+			on = true;
+			sx = e.clientX; sy = e.clientY;
+			ox = parseFloat(this.el.style.left) || 0;
+			oy = parseFloat(this.el.style.top) || 0;
+			head.setPointerCapture(e.pointerId);
+		});
+		head.addEventListener("pointermove", (e) => {
+			if (!on) return;
+			this.el.style.left = Math.max(-this.el.offsetWidth + 90, Math.min(window.innerWidth - 90, ox + e.clientX - sx)) + "px";
+			this.el.style.top = Math.max(4, Math.min(window.innerHeight - 40, oy + e.clientY - sy)) + "px";
+		});
+		head.addEventListener("pointerup", () => on = false);
+	}
+}
+
 app.registerExtension({
 	name: ID,
 	init() {
@@ -1361,6 +1466,22 @@ app.registerExtension({
 			onChange: (value) => {
 				Config.set("panelImg", String(value));
 				for (const ac of AC_INSTANCES) ac.refreshPrefs();
+			},
+		});
+
+		app.ui.settings.addSetting({
+			id: ID + ".openStyler",
+			name: "Danbooru 补全 - 外观定制器",
+			type: "combo",
+			defaultValue: "",
+			options: [
+				{ value: "", text: "（选择以打开）" },
+				{ value: "open", text: "打开外观定制器" },
+			],
+			onChange: (value) => {
+				if (value !== "open") return;
+				openStyler();
+				try { app.ui.settings.setSettingValue?.(ID + ".openStyler", ""); } catch { void 0; }
 			},
 		});
 

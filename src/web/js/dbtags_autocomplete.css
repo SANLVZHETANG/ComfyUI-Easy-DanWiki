@@ -460,3 +460,95 @@
 	max-width: 60vw;
 	word-break: break-word;
 }
+
+/* ---- appearance styler window (P16): deliberately theme-free neutral UI ---- */
+.dbtags-ac-styler {
+	position: fixed;
+	z-index: 10001;
+	display: flex;
+	flex-direction: column;
+	width: 860px;
+	max-height: 86vh;
+	background: #26282d;
+	border: 1px solid #565b66;
+	border-radius: 8px;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+	color: #d8dade;
+	font-family: sans-serif;
+	font-size: 12px;
+}
+
+.dbtags-ac-styler-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	cursor: move;
+	user-select: none;
+	font-weight: bold;
+	font-size: 13px;
+	color: #fff;
+	background: #1d1f23;
+	border-bottom: 1px solid #565b66;
+	border-radius: 8px 8px 0 0;
+}
+
+.dbtags-ac-styler-head .dbtags-ac-close {
+	margin-left: auto;
+	color: #d8dade;
+	background: rgba(255, 255, 255, 0.08);
+	border-color: #565b66;
+}
+
+.dbtags-ac-styler-body {
+	display: flex;
+	gap: 12px;
+	padding: 10px;
+	overflow: auto;
+	min-height: 0;
+}
+
+.dbtags-ac-styler-ctrl {
+	flex: 0 0 390px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.dbtags-ac-styler-prev {
+	flex: 1;
+	min-width: 0;
+	position: relative;
+}
+
+.dbtags-ac-styler-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dbtags-ac-styler-label {
+	flex: 0 0 108px;
+	color: #9aa0aa;
+}
+
+.dbtags-ac-styler-val {
+	flex: 0 0 52px;
+	text-align: right;
+	color: #cfd3da;
+}
+
+.dbtags-ac-styler select,
+.dbtags-ac-styler input[type="range"] {
+	flex: 1;
+	min-width: 0;
+	font-size: 12px;
+}
+
+.dbtags-ac-styler select {
+	background: #1d1f23;
+	color: #d8dade;
+	border: 1px solid #565b66;
+	border-radius: 4px;
+	padding: 2px 4px;
+}
