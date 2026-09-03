@@ -1248,6 +1248,51 @@ async function loadIndex() {
 	return true;
 }
 
+/* full key list + defaults (P18: export/import contract) */
+const SETTING_DEFS = {
+	theme: "dark",
+	opacity: 100,
+	lang: "zh",
+	aliasTable: "true",
+	pyMode: "zh-first",
+	pyMinLen: 4,
+	fuzzy: "always",
+	showWiki: "true",
+	showSummary: "true",
+	showImage: "true",
+	showLinks: "true",
+	panelImg: "false",
+	bracketNav: "true",
+	debug: "false",
+	mode: "pc",
+	minPost: 500,
+	maxCount: 30,
+	imgMode: "large",
+	navMode: "A",
+	widthMode: "fit",
+	width: 340,
+	font: 13,
+	customVars: "",
+};
+
+const THEME_DESC = {
+	scope: "Danbooru 补全浮窗（custom 主题）",
+	colors: {
+		bg: "候选列表背景色（避免纯黑纯白，会叠毛玻璃透明度）",
+		bg2: "wiki 面板背景色（建议与 bg 差一档明度做层次）",
+		border: "边框色（介于背景与文字之间，保证轮廓清晰）",
+		text: "主文字：标签名/面板标题（与 bg 对比度需 ≥ 4.5:1）",
+		sub: "次要文字：列表中的中文小字",
+		summary: "wiki 正文文字（建议中等亮度，长文可读优先）",
+		highlight: "链接/强调色（wiki 内链、命中高亮，深底配亮色）",
+		count: "帖数文字（药丸底为半透明白，需在该底色上仍清晰）",
+		fuzzy: "正文匹配命中色（与 highlight 区分度要大）",
+	},
+	derived: "selected=highlight加18%透明, fuzzy-bg=fuzzy加14%透明, zh=sub, bg/bg2自动转rgb三元组",
+	file_format: "{ schema, exported, settings:{全部键值}, theme_desc:{本说明} }；只改 settings.customVars 里的颜色即可换肤",
+};
+let _stylerMsg = null;
+
 /* ================= appearance styler (P16) ================= */
 let _styler = null;
 
@@ -1395,7 +1440,7 @@ class Styler {
 			this.#comboRow("匹配语言", "lang", [["zh", "中文（回退英文）"], ["en", "English"]], "zh"),
 			this.#boolRow("别名表", "aliasTable"),
 			this.#comboRow("拼音命中", "pyMode", [["zh-first", "拼音结果靠前"], ["en-first", "英文结果靠前"], ["off", "关闭"]], "zh-first"),
-			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 3),
+			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 4),
 			this.#comboRow("正文匹配", "fuzzy", [["always", "始终"], ["fallback", "兜底"], ["off", "关"]], "always"),
 			this.#sliderRow("最低post数", "minPost", 1, 2000, 500),
 			this.#sliderRow("最多候选数", "maxCount", 10, 60, 30),
@@ -1427,13 +1472,117 @@ class Styler {
 				for (const k of Object.keys(localStorage)) {
 					if (k.startsWith(ID + ".")) localStorage.removeItem(k);
 				}
+				getCustomColors.cache = null;
 				applyConfig();
 				for (const ac of AC_INSTANCES) ac.refreshPrefs();
 				this.close();
 				openStyler();
 			},
 		}));
+		const gIO = this.#group("导出 / 导入");
+		this.ioStatus = $el("div.dbtags-ac-styler-lab-stats");
+		this.ta = $el("textarea.dbtags-ac-styler-ta", {
+			placeholder: "粘贴导出的 / AI 生成的配置 JSON，点「应用粘贴配置」",
+		});
+		this.ta.rows = 5;
+		this.fileInp = $el("input");
+		this.fileInp.type = "file";
+		this.fileInp.accept = ".json,application/json";
+		this.fileInp.style.display = "none";
+		this.fileInp.onchange = () => {
+			const f = this.fileInp.files && this.fileInp.files[0];
+			if (f) f.text().then((t) => this.#importText(t));
+		};
+		gIO.append(
+			$el("div.dbtags-ac-styler-row", {}, [
+				$el("button.dbtags-ac-styler-reset", { textContent: "导出 JSON 文件", onclick: () => this.#exportFile() }),
+				$el("button.dbtags-ac-styler-reset", { textContent: "复制到剪贴板", onclick: () => this.#copyJson() }),
+				$el("button.dbtags-ac-styler-reset", { textContent: "从文件导入", onclick: () => this.fileInp.click() }),
+			]),
+			this.ta,
+			$el("div.dbtags-ac-styler-row", {}, [
+				$el("button.dbtags-ac-styler-reset", { textContent: "应用粘贴配置", onclick: () => this.#importText(this.ta.value) }),
+				this.ioStatus,
+			]),
+			this.fileInp,
+		);
+		if (_stylerMsg) {
+			this.ioStatus.textContent = _stylerMsg;
+			_stylerMsg = null;
+		}
 		this.#refreshSwatches();
+	}
+
+	#exportJson() {
+		const settings = {};
+		for (const k of Object.keys(SETTING_DEFS)) settings[k] = Config.get(k, SETTING_DEFS[k]);
+		return JSON.stringify({
+			schema: "dbtags-styler/1",
+			exported: new Date().toISOString().slice(0, 10),
+			settings,
+			theme_desc: THEME_DESC,
+		}, null, 2);
+	}
+
+	#exportFile() {
+		const blob = new Blob([this.#exportJson()], { type: "application/json" });
+		const a = $el("a", { href: URL.createObjectURL(blob), download: "dbtags-styler.json" });
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+		this.ioStatus.textContent = "已导出 dbtags-styler.json";
+	}
+
+	#copyJson() {
+		const j = this.#exportJson();
+		const fallback = () => {
+			this.ta.value = j;
+			this.ta.select();
+			document.execCommand("copy");
+			this.ioStatus.textContent = "已复制（textarea 后备方式）";
+		};
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard.writeText(j).then(
+				() => { this.ioStatus.textContent = "已复制完整配置，直接丢给 AI 即可"; },
+				fallback
+			);
+		} else {
+			fallback();
+		}
+	}
+
+	#importText(text) {
+		let obj = null;
+		try {
+			obj = JSON.parse(text);
+		} catch {
+			this.ioStatus.textContent = "JSON 解析失败";
+			return;
+		}
+		const src = obj && typeof obj === "object" ? (obj.settings || obj) : null;
+		if (!src) {
+			this.ioStatus.textContent = "找不到 settings 字段";
+			return;
+		}
+		const unknown = [];
+		let n = 0;
+		for (const [k, v] of Object.entries(src)) {
+			if (!(k in SETTING_DEFS)) {
+				unknown.push(k);
+				continue;
+			}
+			Config.set(k, typeof v === "object" && v !== null ? JSON.stringify(v) : String(v));
+			n++;
+		}
+		if (!n) {
+			this.ioStatus.textContent = "没有识别出任何配置键";
+			return;
+		}
+		getCustomColors.cache = null;
+		_stylerMsg = `已应用 ${n} 项配置` + (unknown.length ? `，忽略未知键：${unknown.join(", ")}` : "");
+		applyConfig();
+		for (const ac of AC_INSTANCES) ac.refreshPrefs();
+		this.close();
+		openStyler();
 	}
 
 	#buildPreview() {

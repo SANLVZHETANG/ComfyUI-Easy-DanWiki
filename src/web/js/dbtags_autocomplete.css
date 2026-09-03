@@ -685,3 +685,16 @@
 .dbtags-ac-imgprior .dbtags-ac-fakeimg {
 	height: 340px;
 }
+
+.dbtags-ac-styler-ta {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 80px;
+	background: #1d1f23;
+	border: 1px solid #565b66;
+	border-radius: 4px;
+	color: #d8dade;
+	font-size: 11px;
+	font-family: monospace;
+	resize: vertical;
+}
