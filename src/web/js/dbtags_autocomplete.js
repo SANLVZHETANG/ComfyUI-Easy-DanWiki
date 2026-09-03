@@ -1245,7 +1245,11 @@ function openStyler() {
 		_styler.el.style.zIndex = "10002";
 		return;
 	}
-	_styler = new Styler();
+	try {
+		_styler = new Styler();
+	} catch (err) {
+		console.error("[dbtags] styler failed to open:", err);
+	}
 }
 
 class Styler {
@@ -1401,8 +1405,8 @@ class Styler {
 	#buildPreview() {
 		const mk = (cls, kids) => $el("div." + cls, {}, kids);
 		const row = (name, count, zh, sel, fuzzy) => mk("dbtags-ac-item"
-			+ (sel ? " dbtags-ac-item--selected" : "")
-			+ (fuzzy ? " dbtags-ac-item--fuzzy" : ""), [
+			+ (sel ? ".dbtags-ac-item--selected" : "")
+			+ (fuzzy ? ".dbtags-ac-item--fuzzy" : ""), [
 			$el("span.dbtags-ac-name", { textContent: name }),
 			$el("span.dbtags-ac-count", { textContent: count }),
 			$el("span.dbtags-ac-zh", { textContent: zh }),
@@ -1410,7 +1414,7 @@ class Styler {
 		const list = mk("dbtags-ac-list", [
 			row("1girl", "8.3M", "单女孩", true),
 			row("cherry_blossoms", "1.2M", "樱花"),
-			mk("dbtags-ac-item dbtags-ac-item--fuzzy", [
+			mk("dbtags-ac-item.dbtags-ac-item--fuzzy", [
 				$el("span.dbtags-ac-name", { textContent: "rain umbrella" }),
 				$el("span.dbtags-ac-snippet", {}, [
 					"...她在雨中",
@@ -1439,7 +1443,7 @@ class Styler {
 			$el("div.dbtags-ac-fakeimg"),
 		]);
 		const stack = mk("dbtags-ac-panelstack", [panel]);
-		this.prev.append(mk("dbtags-ac-wrap dbtags-ac-preview-wrap", [list, stack]));
+		this.prev.append(mk("dbtags-ac-wrap.dbtags-ac-preview-wrap", [list, stack]));
 	}
 
 	#buildPickers() {
