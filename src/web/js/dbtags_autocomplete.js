@@ -51,13 +51,78 @@ const Config = {
 	},
 };
 
+/* ---- custom theme (color picker vars, stored as hex JSON in customVars) ---- */
+const CUSTOM_DEFAULT = {
+	bg: "#f8e7ee",
+	bg2: "#fdf0f5",
+	border: "#e38fba",
+	text: "#53263e",
+	sub: "#8b4e6d",
+	highlight: "#ec62a1",
+	count: "#c34e81",
+	fuzzy: "#d77160",
+};
+const CUSTOM_INLINE_VARS = [
+	"--dbtags-ac-bg", "--dbtags-ac-bg-rgb", "--dbtags-ac-bg2", "--dbtags-ac-bg2-rgb",
+	"--dbtags-ac-border", "--dbtags-ac-text", "--dbtags-ac-sub", "--dbtags-ac-zh",
+	"--dbtags-ac-highlight", "--dbtags-ac-selected", "--dbtags-ac-count",
+	"--dbtags-ac-fuzzy", "--dbtags-ac-fuzzy-bg",
+];
+
+function hexRgb(hex) {
+	const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+	if (!m) return null;
+	const n = parseInt(m[1], 16);
+	return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
+function getCustomColors() {
+	if (getCustomColors.cache) return getCustomColors.cache;
+	let c = null;
+	try {
+		c = JSON.parse(Config.get("customVars", ""));
+	} catch {
+		c = null;
+	}
+	if (!c || typeof c !== "object") c = { ...CUSTOM_DEFAULT };
+	getCustomColors.cache = { ...CUSTOM_DEFAULT, ...c };
+	return getCustomColors.cache;
+}
+
+function saveCustomColors(c) {
+	getCustomColors.cache = { ...CUSTOM_DEFAULT, ...c };
+	Config.set("customVars", JSON.stringify(getCustomColors.cache));
+	applyConfig();
+	for (const ac of AC_INSTANCES) ac.refreshPrefs();
+}
+
 function applyConfig() {
 	const root = document.documentElement;
 	const theme = Config.get("theme", "dark");
 	root.classList.toggle("dbtags-theme-dark", theme === "dark");
 	root.classList.toggle("dbtags-theme-light", theme === "light");
 	root.classList.toggle("dbtags-theme-pink", theme === "pink");
+	root.classList.toggle("dbtags-theme-custom", theme === "custom");
 	root.classList.toggle("dbtags-width-fixed", Config.get("widthMode", "fit") === "fixed");
+	// inline custom vars beat any theme class block; wipe first so built-ins stay clean
+	for (const v of CUSTOM_INLINE_VARS) root.style.removeProperty(v);
+	if (theme === "custom") {
+		const c = getCustomColors();
+		const set = (v, val) => val && root.style.setProperty(v, val);
+		set("--dbtags-ac-bg", c.bg);
+		set("--dbtags-ac-bg-rgb", hexRgb(c.bg));
+		set("--dbtags-ac-bg2", c.bg2);
+		set("--dbtags-ac-bg2-rgb", hexRgb(c.bg2));
+		set("--dbtags-ac-border", c.border);
+		set("--dbtags-ac-text", c.text);
+		set("--dbtags-ac-sub", c.sub);
+		set("--dbtags-ac-zh", c.sub);
+		set("--dbtags-ac-highlight", c.highlight);
+		set("--dbtags-ac-selected", hexRgb(c.highlight) ? `rgba(${hexRgb(c.highlight)}, 0.18)` : null);
+		set("--dbtags-ac-count", c.count);
+		set("--dbtags-ac-fuzzy", c.fuzzy);
+		set("--dbtags-ac-fuzzy-bg", hexRgb(c.fuzzy) ? `rgba(${hexRgb(c.fuzzy)}, 0.14)` : null);
+	}
 	const w = Config.getNum("width", 340);
 	const f = Config.getNum("font", 13);
 	const op = Math.min(100, Math.max(25, Config.getNum("opacity", 100)));
@@ -1202,6 +1267,7 @@ app.registerExtension({
 				{ value: "dark", text: "黑灰" },
 				{ value: "light", text: "米白" },
 				{ value: "pink", text: "喵粉（nya~）" },
+				{ value: "custom", text: "自定义（外观定制器取色）" },
 			],
 			onChange: (value) => {
 				Config.set("theme", value);
