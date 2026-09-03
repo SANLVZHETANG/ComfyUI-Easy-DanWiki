@@ -1296,9 +1296,9 @@ class Styler {
 		]);
 	}
 
-	#boolRow(label, key) {
+	#boolRow(label, key, dflt = "true") {
 		const cb = $el("input", { type: "checkbox" });
-		cb.checked = Config.get(key, "true") !== "false";
+		cb.checked = Config.get(key, dflt) !== "false";
 		cb.onchange = () => this.#set(key, cb.checked);
 		return $el("div.dbtags-ac-styler-row", {}, [
 			$el("span.dbtags-ac-styler-label", { textContent: label }), cb,
@@ -1317,10 +1317,90 @@ class Styler {
 		]);
 	}
 
+	#group(title) {
+		const g = $el("div.dbtags-ac-styler-group");
+		g.append($el("b", { textContent: title }));
+		this.ctrl.append(g);
+		return g;
+	}
+
+	#refreshSwatches() {
+		const theme = Config.get("theme", "dark");
+		for (const s of this.swatchEls) {
+			s.classList.toggle("dbtags-ac-sw--on", s.dataset.v === theme);
+		}
+		const custom = this.swatchEls.find((s) => s.dataset.v === "custom");
+		if (custom) {
+			const c = getCustomColors();
+			custom.style.background = `linear-gradient(135deg, ${c.bg} 45%, ${c.highlight} 45%)`;
+		}
+	}
+
 	#buildControls() {
+		const gTheme = this.#group("主题");
+		const swRow = $el("div.dbtags-ac-styler-row");
+		for (const [v, t, bg, ac] of [
+			["dark", "黑灰", "#33383f", "#4da3ff"],
+			["light", "米白", "#f1eee9", "#1e6fd9"],
+			["pink", "喵粉", "#f8e7ee", "#ec62a1"],
+			["custom", "自定义", "", ""],
+		]) {
+			const sw = $el("button.dbtags-ac-sw", {
+				textContent: t,
+				onclick: () => {
+					this.#set("theme", v);
+					this.#refreshSwatches();
+				},
+			});
+			sw.dataset.v = v;
+			if (v !== "custom") sw.style.background = `linear-gradient(135deg, ${bg} 45%, ${ac} 45%)`;
+			this.swatchEls.push(sw);
+			swRow.append(sw);
+		}
+		gTheme.append(swRow, $el("div.dbtags-ac-styler-hint", {
+			textContent: "选「自定义」后可逐色取色，改动即时生效",
+		}));
+		this.pickerBox = $el("div.dbtags-ac-styler-pickers");
+		gTheme.append(this.pickerBox);
+		this.#buildPickers();
+
+		const gSize = this.#group("尺寸与透明度");
+		gSize.append(
+			this.#sliderRow("透明度", "opacity", 25, 100, 100, (x) => x + "%"),
+			this.#sliderRow("字号", "font", 11, 18, 13, (x) => x + "px"),
+			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
+			this.#sliderRow("列表宽度", "width", 240, 800, 340, (x) => x + "px"),
+		);
+
+		const gMatch = this.#group("匹配与搜索");
+		gMatch.append(
+			this.#comboRow("匹配语言", "lang", [["zh", "中文（回退英文）"], ["en", "English"]], "zh"),
+			this.#boolRow("别名表", "aliasTable"),
+			this.#comboRow("拼音命中", "pyMode", [["zh-first", "拼音结果靠前"], ["en-first", "英文结果靠前"], ["off", "关闭"]], "zh-first"),
+			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 3),
+			this.#comboRow("正文匹配", "fuzzy", [["always", "始终"], ["fallback", "兜底"], ["off", "关"]], "always"),
+			this.#sliderRow("最低post数", "minPost", 1, 2000, 500),
+			this.#sliderRow("最多候选数", "maxCount", 10, 60, 30),
+		);
+
+		const gPanel = this.#group("wiki 面板");
+		gPanel.append(
+			this.#boolRow("打开面板", "showWiki"),
+			this.#boolRow("释义", "showSummary"),
+			this.#boolRow("示例图", "showImage"),
+			this.#boolRow("跳转胶囊", "showLinks"),
+			this.#boolRow("图片优先", "panelImg", "false"),
+			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图(悬停放大)"]], "large"),
+			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
+			this.#boolRow("括号键导航", "bracketNav"),
+		);
+		this.#refreshSwatches();
 	}
 
 	#buildPreview() {
+	}
+
+	#buildPickers() {
 	}
 
 	#wireDrag(head) {

@@ -552,3 +552,69 @@
 	border-radius: 4px;
 	padding: 2px 4px;
 }
+
+.dbtags-ac-styler-group {
+	border: 1px solid #3a3d44;
+	border-radius: 6px;
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.dbtags-ac-styler-group > b {
+	color: #fff;
+	font-size: 12px;
+}
+
+.dbtags-ac-sw {
+	width: 72px;
+	height: 38px;
+	border-radius: 6px;
+	border: 2px solid transparent;
+	cursor: pointer;
+	color: #111;
+	font-size: 11px;
+	font-weight: bold;
+	text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
+
+.dbtags-ac-sw--on {
+	border-color: #4da3ff;
+	box-shadow: 0 0 0 2px rgba(77, 163, 255, 0.35);
+}
+
+.dbtags-ac-styler-hint {
+	color: #8a8f98;
+	font-size: 11px;
+}
+
+.dbtags-ac-styler-pickers {
+	display: none;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.dbtags-ac-styler-pickers--on {
+	display: grid;
+}
+
+.dbtags-ac-styler-pick {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.dbtags-ac-styler-pick span {
+	flex: 1;
+	color: #9aa0aa;
+}
+
+.dbtags-ac-styler-pick input[type="color"] {
+	width: 34px;
+	height: 22px;
+	padding: 0;
+	border: 1px solid #565b66;
+	background: none;
+	cursor: pointer;
+}
