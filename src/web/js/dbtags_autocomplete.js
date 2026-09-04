@@ -175,6 +175,7 @@ function applyConfig() {
 	root.style.setProperty("--dbtags-ac-font", f + "px");
 	root.style.setProperty("--dbtags-ac-alpha", String(op / 100));
 	root.style.setProperty("--dbtags-ac-row-height", Config.getNum("rowH", 26) + "px");
+	syncPerfFromConfig();
 	const fam = Config.get("fontFamily", "").replace(/"/g, "");
 	root.style.setProperty("--dbtags-ac-family", fam ? `"${fam}", sans-serif` : "sans-serif");
 }
@@ -331,7 +332,97 @@ function makeSnippet(summary, toks) {
 	return null;
 }
 
+/* ---- perf sampling (fully switchable; zero extra work while off) ---- */
+const PERF_MAX = 300;
+let PERF_ON = false;
+let _lastSeg = null;
+const _perfListeners = [];
+function pr1(x) { return Math.round(x * 10) / 10; }
+function perfNow() { return PERF_ON ? performance.now() : 0; }
+function syncPerfFromConfig() {
+	const on = Config.get("perf", "off") === "on";
+	if (on === PERF_ON) return;
+	PERF_ON = on;
+	if (!on) { Perf.samples = []; _lastSeg = null; }
+	for (const cb of _perfListeners.slice()) {
+		try {
+			cb();
+		} catch {
+			void 0;
+		}
+	}
+}
+const Perf = {
+	samples: [],
+	indexMs: 0,
+	benchTerms: [
+		"1girl",
+		"cat girl",
+		"long hair",
+		"blue_eyes_undies_",
+		"seka",
+		"hatsune miku project diva 2",
+	],
+	on(cb) { _perfListeners.push(cb); },
+	emit() {
+		for (const cb of _perfListeners.slice()) {
+			try {
+				cb();
+			} catch {
+				void 0;
+			}
+		}
+	},
+	push(sample) {
+		if (!PERF_ON) return;
+		Perf.samples.push(sample);
+		if (Perf.samples.length > PERF_MAX) Perf.samples.shift();
+		Perf.emit();
+	},
+	stats(n = 50) {
+		const arr = Perf.samples.slice(-n).map((x) => x.ms).sort((x, y) => x - y);
+		if (!arr.length) return null;
+		const q = (pp) => arr[Math.min(arr.length - 1, Math.floor(pp * arr.length))];
+		return {
+			n: arr.length,
+			avg: arr.reduce((x, y) => x + y, 0) / arr.length,
+			p50: q(0.5),
+			p95: q(0.95),
+			max: arr[arr.length - 1],
+		};
+	},
+	segAvg(n = 50) {
+		const ss = Perf.samples.slice(-n);
+		if (!ss.length) return null;
+		const out = {};
+		for (const k of ["scan", "sort", "fuzzyBody"]) {
+			const vals = ss.map((x) => x.seg?.[k]).filter((x) => typeof x === "number");
+			out[k] = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
+		}
+		return out;
+	},
+	async benchmark(onProgress) {
+		const out = [];
+		for (const term of Perf.benchTerms) {
+			const msArr = [];
+			let hits = 0;
+			for (let i = 0; i < 20; i++) {
+				const t = performance.now();
+				hits = runQuery(term, term.replace(/\s+/g, "_")).total;
+				msArr.push(performance.now() - t);
+				if (i % 5 === 4) await new Promise((res) => setTimeout(res, 0));
+			}
+			msArr.sort((x, y) => x - y);
+			const q = (pp) => msArr[Math.min(msArr.length - 1, Math.floor(pp * msArr.length))];
+			out.push({ term, hits, p50: q(0.5), p95: q(0.95), max: msArr[msArr.length - 1] });
+			if (onProgress) onProgress(out.slice());
+		}
+		return out;
+	},
+};
+
 function searchTags(term) {
+	const _pt = perfNow();
 	const t = term.trim().toLowerCase();
 	if (!t) return [];
 	const cjk = hasCJK(t);
@@ -390,6 +481,7 @@ function searchTags(term) {
 		}
 		if (matchType) out.push({ tag, matchType, matchText });
 	}
+	const _ts = perfNow();
 	out.sort((a, b) => {
 		// exact match first (term equals name or the matched alias/zh)
 		const ea = a.tag.name.toLowerCase() === t || a.matchText.toLowerCase() === t ? 0 : 1;
@@ -403,6 +495,7 @@ function searchTags(term) {
 		if (ra !== rb) return ra - rb;
 		return b.tag.post_count - a.tag.post_count;
 	});
+	if (PERF_ON) _lastSeg = { scan: _ts - _pt, sort: perfNow() - _ts };
 	return out;
 }
 
@@ -519,7 +612,9 @@ const AC_INSTANCES = new Set(); // live completions, for settings-driven refresh
 /* shared query pipeline (real popup + styler lab use this exact path) */
 function runQuery(term, word) {
 	const t0 = performance.now();
+	const _pt0 = PERF_ON ? t0 : 0;
 	let results = searchTags(word);
+	const _tSearch = PERF_ON ? performance.now() : 0;
 	let isFuzzy = false;
 	const fuzzyMode = Config.get("fuzzy", "always");
 	if (fuzzyMode !== "off") {
@@ -541,6 +636,20 @@ function runQuery(term, word) {
 				isFuzzy = true;
 			}
 		}
+	}
+	if (PERF_ON) {
+		const tEnd = performance.now();
+		Perf.push({
+			term,
+			ms: pr1(tEnd - _pt0),
+			hits: results.length,
+			fuzzy: isFuzzy,
+			seg: {
+				scan: pr1(_lastSeg?.scan ?? 0),
+				sort: pr1(_lastSeg?.sort ?? 0),
+				fuzzyBody: pr1(tEnd - _tSearch),
+			},
+		});
 	}
 	dlog("D", `search "${term}" -> ${results.length}${isFuzzy ? " (body)" : ""} hits, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
 	if (!results.length) return { list: [], total: 0 };
@@ -1370,7 +1479,8 @@ async function loadIndex() {
 		return false;
 	}
 	index = await resp.json();
-	dlog("C", `index loaded: ${index.count} tags, ${Math.round(performance.now() - t0)}ms`);
+	Perf.indexMs = Math.round(performance.now() - t0);
+	dlog("C", `index loaded: ${index.count} tags, ${Perf.indexMs}ms`);
 	for (const cb of _indexReadyCbs.splice(0)) {
 		try {
 			cb();
@@ -1405,6 +1515,7 @@ const SETTING_DEFS = {
 	widthMode: "fit",
 	fontFamily: "",
 	rowH: 26,
+	perf: "off",
 	width: 340,
 	font: 13,
 	customVars: "",
@@ -1727,6 +1838,54 @@ class Styler {
 			]),
 			this.fileInp,
 		);
+		const gPerf = this.#group("性能");
+		const perfCb = $el("input", { type: "checkbox" });
+		perfCb.checked = PERF_ON;
+		perfCb.onchange = () => this.#set("perf", perfCb.checked ? "on" : "off");
+		this.perfStats = $el("div.dbtags-ac-styler-hint");
+		this.perfSeg = $el("div.dbtags-ac-styler-hint");
+		this.perfBench = $el("div.dbtags-ac-styler-perf");
+		this.perfBox = $el("div", {}, [
+			this.perfStats,
+			this.perfSeg,
+			$el("div.dbtags-ac-styler-row", {}, [
+				$el("button.dbtags-ac-styler-reset", { textContent: "跑分基准", onclick: () => this.#runBench() }),
+				$el("button.dbtags-ac-styler-reset", { textContent: "清空样本", onclick: () => { Perf.samples = []; _lastSeg = null; Perf.emit(); } }),
+			]),
+			this.perfBench,
+		]);
+		gPerf.append(
+			$el("div.dbtags-ac-styler-row", {}, [
+				$el("span.dbtags-ac-styler-label", { textContent: "记录性能数据" }), perfCb,
+			]),
+			$el("div.dbtags-ac-styler-hint", {
+				textContent: "默认关。开启仅在当前页内存记录最近 300 次查询，关闭即清空；关闭状态下查询路径零额外开销。",
+			}),
+			this.perfBox,
+		);
+		this.perfRefresh = () => {
+			if (!this.perfBox?.isConnected) return;
+			perfCb.checked = PERF_ON;
+			this.perfBox.style.display = PERF_ON ? "" : "none";
+			if (!PERF_ON) {
+				this.perfStats.textContent = "";
+				this.perfSeg.textContent = "";
+				this.perfBench.replaceChildren();
+				return;
+			}
+			const st = Perf.stats();
+			const mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+			this.perfStats.textContent =
+				`索引加载 ${Perf.indexMs || "—"}ms · JS堆 ${mem === null ? "—" : mem + "MB"} · 样本 ${Perf.samples.length}/${PERF_MAX}` +
+				(st ? ` · 近${st.n}次 avg ${pr1(st.avg)} · P50 ${pr1(st.p50)} · P95 ${pr1(st.p95)} · max ${pr1(st.max)}ms` : " · 暂无样本");
+			const sa = Perf.segAvg();
+			this.perfSeg.textContent = sa && st
+				? `阶段均值：扫描 ${pr1(sa.scan)}ms（含别名/拼音） · 排序 ${pr1(sa.sort)}ms · 正文匹配 ${pr1(sa.fuzzyBody)}ms`
+				: "";
+		};
+		Perf.on(this.perfRefresh);
+		this.perfRefresh();
+
 		if (_stylerMsg) {
 			this.ioStatus.textContent = _stylerMsg;
 			_stylerMsg = null;
@@ -1866,7 +2025,9 @@ class Styler {
 			return;
 		}
 		const word = term.replace(/\s+/g, "_");
+		const _lt0 = performance.now();
 		const { list, total, dropped, minPc } = runQuery(term, word);
+		const _ltMs = pr1(performance.now() - _lt0);
 		const rows = list.map((item, i) => {
 			const row = buildItemRow(item, word);
 			if (i === 0) row.classList.add("dbtags-ac-item--selected");
@@ -1883,7 +2044,45 @@ class Styler {
 		this.labStats.textContent =
 			`命中 ${total} · 显示 ${list.length}` +
 			(dropped > 0 ? ` · 被热度过滤 ${dropped}` : "") +
-			(bodyHits ? ` · 其中正文匹配 ${bodyHits}` : "");
+			(bodyHits ? ` · 其中正文匹配 ${bodyHits}` : "") +
+			(PERF_ON ? ` · 耗时 ${_ltMs}ms` : "");
+	}
+
+	#runBench() {
+		this.perfBench.replaceChildren(
+			$el("div.dbtags-ac-styler-hint", { textContent: "跑分中…（6 词 × 20 遍，约 2–5 秒）" }),
+		);
+		Perf.benchmark((partial) => this.#renderBench(partial)).then(
+			(rows) => this.#renderBench(rows),
+			(e) => this.perfBench.replaceChildren(
+				$el("div.dbtags-ac-styler-hint", { textContent: `跑分失败：${e.message}` }),
+			),
+		);
+	}
+
+	#renderBench(rows) {
+		if (!this.perfBench?.isConnected) return;
+		const table = $el("table.dbtags-ac-styler-perf-table");
+		const head = $el("tr");
+		for (const h of ["查询", "命中", "P50", "P95", "max"]) head.append($el("th", { textContent: h }));
+		table.append(head);
+		for (const r of rows) {
+			const tr = $el("tr");
+			const cells = [
+				`"${r.term}"`,
+				String(r.hits),
+				`${pr1(r.p50)}ms`,
+				`${pr1(r.p95)}ms`,
+				`${pr1(r.max)}ms`,
+			];
+			for (let i = 0; i < cells.length; i++) {
+				const td = $el("td", { textContent: cells[i] });
+				if (i >= 2 && r.p95 > 16) td.style.color = "#e5484d";
+				tr.append(td);
+			}
+			table.append(tr);
+		}
+		this.perfBench.replaceChildren(table);
 	}
 
 	#syncPreviewPanel() {
