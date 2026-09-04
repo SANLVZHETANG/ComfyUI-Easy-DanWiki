@@ -1050,6 +1050,18 @@ class DBTagsAutoComplete {
 			img,
 		]);
 		document.body.append(card);
+		this._imgCard = card;
+		this.#placeImageCard(card, anchor);
+		img.onload = () => {
+			if (this._imgCard === card) this.#placeImageCard(card, anchor);
+		};
+		this._cardKey = (e) => {
+			if (e.key === "Escape") this.#closeImageCard();
+		};
+		document.addEventListener("keydown", this._cardKey, true);
+	}
+
+	#placeImageCard(card, anchor) {
 		const r = anchor.getBoundingClientRect();
 		const cw = card.offsetWidth;
 		const ch = card.offsetHeight;
@@ -1058,11 +1070,6 @@ class DBTagsAutoComplete {
 		if (left < 8) left = 8;
 		card.style.left = left + "px";
 		card.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - ch - 8)) + "px";
-		this._imgCard = card;
-		this._cardKey = (e) => {
-			if (e.key === "Escape") this.#closeImageCard();
-		};
-		document.addEventListener("keydown", this._cardKey, true);
 	}
 
 	#closeImageCard() {
