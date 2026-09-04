@@ -2,13 +2,22 @@
 """
 Backend routes for the danbooru autocomplete extension.
 
-READ-ONLY on the source dataset (danbooru-general-tags). Serves:
+READ-ONLY on the dataset. Serves:
   GET /dbtags/status   -> json status (index info, manifest info, uptime)
   GET /dbtags/image    -> example image for a tag (whitelisted via manifest)
   GET /dbtags/fonts    -> font file names in the plugin fonts/ dir
   GET /dbtags/font     -> one font file (?name=, extension whitelisted)
 
-Optional debug log (DEBUG=True) writes request traces to debug.log.
+The dataset root (manifest.json + tag_images/ + tag_images_large/) is
+resolved with no configuration:
+  1. $DBTAGS_DATASET environment variable (absolute path)
+  2. <plugin>/dataset
+  3. <plugin> itself
+  4. legacy dev path (last resort, only exists on the author machine)
+Each request re-verifies the resolved file, so a missing image pack simply
+404s (the frontend hides the image slot) instead of breaking anything.
+
+Optional debug log (only when $DBTAGS_DEBUG is set) writes to debug.log.
 """
 
 import json
@@ -18,12 +27,28 @@ import time
 from aiohttp import web
 from server import PromptServer
 
-BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags"
+_PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+_LEGACY_BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags"
+
+
+def _resolve_base():
+    env = os.environ.get("DBTAGS_DATASET", "").strip()
+    if env:
+        return env
+    for cand in (os.path.join(_PLUGIN_DIR, "dataset"),
+                 _PLUGIN_DIR):
+        if os.path.isfile(os.path.join(cand, "manifest.json")):
+            return cand
+    # author-machine fallback (empty in shipped builds)
+    if _LEGACY_BASE and os.path.isfile(os.path.join(_LEGACY_BASE, "manifest.json")):
+        return _LEGACY_BASE
+    return _PLUGIN_DIR
+
+
+BASE = _resolve_base()
 MANIFEST_FILE = os.path.join(BASE, "manifest.json")
-INDEX_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "web", "js", "data", "tags_index.json")
-FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+INDEX_FILE = os.path.join(_PLUGIN_DIR, "web", "js", "data", "tags_index.json")
+FONT_DIR = os.path.join(_PLUGIN_DIR, "fonts")
 FONT_EXTS = (".ttf", ".otf", ".woff", ".woff2")
 FONT_MIME = {
     ".ttf": "font/ttf",
@@ -32,9 +57,8 @@ FONT_MIME = {
     ".woff2": "font/woff2",
 }
 
-DEBUG = True
-DEBUG_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "debug.log")
+DEBUG = bool(os.environ.get("DBTAGS_DEBUG", ""))
+DEBUG_LOG = os.path.join(_PLUGIN_DIR, "debug.log")
 
 _started = time.time()
 _manifest = None
@@ -122,6 +146,13 @@ async def get_image(request):
         path = large if size == "large" else small
         if not path:
             path = small or large
+        # graceful downgrade/upgrade: when the requested pack is absent but
+        # the other exists, serve the other (no image pack should ever look
+        # like a broken slot; both packs are optional downloads)
+        if path and not os.path.isfile(os.path.join(BASE, path)):
+            other = small if size == "large" else large
+            if other and os.path.isfile(os.path.join(BASE, other)):
+                path = other
     if not path:
         _log("image 404: tag=%s" % tag)
         return web.Response(status=404, text="no image for tag")

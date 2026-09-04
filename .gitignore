@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 smoke/_check.mjs
+
+release/
+src/web/js/data/
