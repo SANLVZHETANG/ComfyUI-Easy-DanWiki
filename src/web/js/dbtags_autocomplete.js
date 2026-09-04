@@ -421,40 +421,66 @@ const Perf = {
 	},
 };
 
+/* precomputed per-tag match strings (built once after index load) */
+let _mc = null;
+function buildMatchCache() {
+	_mc = index.tags.map((t) => {
+		const alRaw = listField(t.aliases);
+		const alLow = [];
+		for (let i = 0; i < alRaw.length; i++) {
+			alLow.push(typeof alRaw[i] === "string" ? alRaw[i].toLowerCase() : null);
+		}
+		return {
+			ln: (typeof t.name === "string" ? t.name : "").toLowerCase(),
+			alRaw,
+			alLow,
+			pys: listField(t.py),
+			zh0: typeof t.zhtag === "string" ? t.zhtag : "",
+			alzh: listField(t.aliases_zh),
+			zhl: listField(t.zh),
+		};
+	});
+}
+
 function searchTags(term) {
 	const _pt = perfNow();
 	const t = term.trim().toLowerCase();
 	if (!t) return [];
+	if (!_mc) buildMatchCache();
+	if (!PERF_ON) _lastSeg = null;
 	const cjk = hasCJK(t);
+	// config reads hoisted out of the 30k loop (was per-tag localStorage hits)
+	const pyOn = !cjk && pyMode() !== "off";
+	const q = t.replace(/\s+/g, "");
+	const pyMin = pyOn ? Config.getNum("pyMinLen", 4) : 0;
+	const aliasOn = aliasTableOn();
 	const out = [];
-	for (const tag of index.tags) {
-		const name = tag.name.toLowerCase();
+	const tags = index.tags;
+	for (let i = 0; i < tags.length; i++) {
+		const c = _mc[i];
 		let matchType = null;
 		let matchText = null;
-		if (name.includes(t)) {
+		if (c.ln.includes(t)) {
 			matchType = "name";
-			matchText = tag.name;
+			matchText = tags[i].name;
 		}
 		if (!matchType && !cjk) {
-			for (const a of listField(tag.aliases)) {
-				if (a.toLowerCase().includes(t)) {
+			for (let j = 0; j < c.alLow.length; j++) {
+				const al = c.alLow[j];
+				if (al !== null && al.includes(t)) {
 					matchType = "alias";
-					matchText = a;
+					matchText = c.alRaw[j];
 					break;
 				}
 			}
 		}
-		if (!matchType && !cjk && pyMode() !== "off") {
-			// latin input >= pyMinLen chars: match toneless pinyin of the zh layer
-			const q = t.replace(/\s+/g, "");
-			if (q.length >= Config.getNum("pyMinLen", 4)) {
-				const pys = listField(tag.py);
-				for (let i = 0; i < pys.length; i++) {
-					if (typeof pys[i] === "string" && pys[i].includes(q)) {
-						matchType = "py";
-						matchText = zhSources(tag)[i] || pys[i];
-						break;
-					}
+		if (!matchType && pyOn && q.length >= pyMin) {
+			const pys = c.pys;
+			for (let j = 0; j < pys.length; j++) {
+				if (typeof pys[j] === "string" && pys[j].includes(q)) {
+					matchType = "py";
+					matchText = zhSources(tags[i])[j] || pys[j];
+					break;
 				}
 			}
 		}
@@ -462,33 +488,37 @@ function searchTags(term) {
 			// loose chinese match: translated names first; the new-lib alias
 			// table (aliases_zh from translations.jsonl) can be toggled off.
 			// Japanese source aliases are NOT scanned for cjk queries.
-			const fields = [["zhtag", [tag.zhtag]]];
-			if (aliasTableOn()) {
-				fields.push(["aliases_zh", listField(tag.aliases_zh)]);
-				fields.push(["zh", listField(tag.zh)]);
-			}
-			for (const [kind, values] of fields) {
-				for (const z of values) {
-					if (typeof z !== "string") continue;
-					if (isSubsequence(t, z)) {
-						matchType = kind;
-						matchText = z;
-						break;
+			if (c.zh0 && isSubsequence(t, c.zh0)) {
+				matchType = "zhtag";
+				matchText = c.zh0;
+			} else if (aliasOn) {
+				const groups = [c.alzh, c.zhl];
+				const kinds = ["aliases_zh", "zh"];
+				for (let g = 0; g < 2 && !matchType; g++) {
+					const values = groups[g];
+					for (let j = 0; j < values.length; j++) {
+						const z = values[j];
+						if (typeof z !== "string") continue;
+						if (isSubsequence(t, z)) {
+							matchType = kinds[g];
+							matchText = z;
+							break;
+						}
 					}
 				}
-				if (matchType) break;
 			}
 		}
-		if (matchType) out.push({ tag, matchType, matchText });
+		if (matchType) out.push({ tag: tags[i], matchType, matchText, ln: c.ln });
 	}
 	const _ts = perfNow();
+	for (const e of out) e.mtl = (e.matchText || "").toLowerCase();
 	out.sort((a, b) => {
 		// exact match first (term equals name or the matched alias/zh)
-		const ea = a.tag.name.toLowerCase() === t || a.matchText.toLowerCase() === t ? 0 : 1;
-		const eb = b.tag.name.toLowerCase() === t || b.matchText.toLowerCase() === t ? 0 : 1;
+		const ea = a.ln === t || a.mtl === t ? 0 : 1;
+		const eb = b.ln === t || b.mtl === t ? 0 : 1;
 		if (ea !== eb) return ea - eb;
-		const pa = a.tag.name.toLowerCase().startsWith(t) ? 0 : 1;
-		const pb = b.tag.name.toLowerCase().startsWith(t) ? 0 : 1;
+		const pa = a.ln.startsWith(t) ? 0 : 1;
+		const pb = b.ln.startsWith(t) ? 0 : 1;
 		if (pa !== pb) return pa - pb;
 		const ra = typeRank(a.matchType);
 		const rb = typeRank(b.matchType);
