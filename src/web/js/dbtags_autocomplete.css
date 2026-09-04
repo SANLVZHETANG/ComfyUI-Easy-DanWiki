@@ -590,10 +590,23 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
+	max-height: 136px;
+	overflow-y: auto;
+	padding-right: 4px;
+}
+
+.dbtags-ac-styler-swatches::-webkit-scrollbar {
+	width: 8px;
+}
+
+.dbtags-ac-styler-swatches::-webkit-scrollbar-thumb {
+	background: var(--dbtags-ac-border);
+	border-radius: 4px;
 }
 
 /* theme swatch: mini mock of the popup (list bg, selected row, text bars) */
 .dbtags-ac-sw {
+	position: relative;
 	width: 78px;
 	padding: 4px 4px 3px;
 	background: var(--dbtags-ac-bg2);
@@ -604,6 +617,49 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 3px;
+}
+
+.dbtags-ac-sw-del {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	display: none;
+	width: 14px;
+	height: 14px;
+	line-height: 12px;
+	text-align: center;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var(--dbtags-ac-bg2);
+	border: 1px solid var(--dbtags-ac-border);
+	color: var(--dbtags-ac-text);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.dbtags-ac-sw:hover .dbtags-ac-sw-del {
+	display: block;
+}
+
+.dbtags-ac-styler-btnrow {
+	display: flex;
+	gap: 8px;
+}
+
+.dbtags-ac-styler-btn {
+	flex: 1;
+	background: var(--dbtags-ac-bg2);
+	color: var(--dbtags-ac-text);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	font-size: 12px;
+}
+
+.dbtags-ac-styler-btn:hover {
+	border-color: var(--dbtags-ac-highlight);
 }
 
 .dbtags-ac-sw--on {

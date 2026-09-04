@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp40";
+	url.search = "?v=cp41";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -148,18 +148,37 @@ function saveCustomColors(c) {
 	for (const ac of AC_INSTANCES) ac.refreshPrefs();
 }
 
+/* user-imported/saved theme presets: [{ id, name, colors:{...} }] */
+function getUserThemes() {
+	let list = [];
+	try {
+		list = JSON.parse(Config.get("userThemes", ""));
+	} catch {
+		list = [];
+	}
+	return Array.isArray(list) ? list : [];
+}
+
+function saveUserThemes(list) {
+	Config.set("userThemes", JSON.stringify(list));
+}
+
+function findUserTheme(id) {
+	return getUserThemes().find((p) => p && p.id === id) || null;
+}
+
 function applyConfig() {
 	const root = document.documentElement;
 	const theme = Config.get("theme", "dark");
+	const isUserTheme = typeof theme === "string" && theme.startsWith("up");
 	root.classList.toggle("dbtags-theme-dark", theme === "dark");
 	root.classList.toggle("dbtags-theme-light", theme === "light");
 	root.classList.toggle("dbtags-theme-pink", theme === "pink");
-	root.classList.toggle("dbtags-theme-custom", theme === "custom");
+	root.classList.toggle("dbtags-theme-custom", theme === "custom" || isUserTheme);
 	root.classList.toggle("dbtags-width-fixed", Config.get("widthMode", "fit") === "fixed");
 	// inline custom vars beat any theme class block; wipe first so built-ins stay clean
 	for (const v of CUSTOM_INLINE_VARS) root.style.removeProperty(v);
-	if (theme === "custom") {
-		const c = getCustomColors();
+	const applyColors = (c) => {
 		const set = (v, val) => val && root.style.setProperty(v, val);
 		set("--dbtags-ac-bg", c.bg);
 		set("--dbtags-ac-bg-rgb", hexRgb(c.bg));
@@ -175,6 +194,12 @@ function applyConfig() {
 		set("--dbtags-ac-count", c.count);
 		set("--dbtags-ac-fuzzy", c.fuzzy);
 		set("--dbtags-ac-fuzzy-bg", hexRgb(c.fuzzy) ? `rgba(${hexRgb(c.fuzzy)}, 0.14)` : null);
+	};
+	if (theme === "custom") {
+		applyColors(getCustomColors());
+	} else if (isUserTheme) {
+		const preset = findUserTheme(theme);
+		if (preset && preset.colors) applyColors({ ...CUSTOM_DEFAULT, ...preset.colors });
 	}
 	const w = Config.getNum("width", 340);
 	const f = Config.getNum("font", 13);
@@ -1795,47 +1820,161 @@ class Styler {
 		}
 		this.#syncPickers();
 	}
-
-	#buildControls() {
-		const gTheme = this.#group("主题");
-		const swRow = $el("div.dbtags-ac-styler-swatches");
-		const SWATCH_COLORS = {
-			dark:  { bg:"#33383f", border:"#7a8394", sel:"rgba(77,163,255,0.16)", text:"#e6e6e6", sub:"#b5bac2", count:"#a8c6a8" },
-			light: { bg:"#f7f5f1", border:"#bdb6a8", sel:"rgba(30,111,217,0.12)", text:"#3b3b3b", sub:"#6f6f6f", count:"#4d7a4d" },
-			pink:  { bg:"#fdf0f5", border:"#e38fba", sel:"rgba(236,98,161,0.18)", text:"#53263e", sub:"#8b4e6d", count:"#c34e81" },
-		};
+	/* one mini-popup swatch button */
+	#makeSwatch(v, t, c) {
+		const sw = $el("button.dbtags-ac-sw", {
+			onclick: () => {
+				this.#set("theme", v);
+				this.#refreshSwatches();
+			},
+		});
+		sw.dataset.v = v;
+		const card = $el("span.dbtags-ac-sw-card");
+		card.style.background = c.bg;
+		card.style.borderColor = c.border;
 		const bar = (w, color) => {
 			const b = $el("i.dbtags-ac-sw-bar");
 			b.style.width = w;
 			b.style.background = color;
 			return b;
 		};
+		const selRow = $el("span.dbtags-ac-sw-row.dbtags-ac-sw-sel");
+		selRow.style.background = c.sel;
+		selRow.append(bar("44%", c.text), bar("14%", c.count));
+		const row2 = $el("span.dbtags-ac-sw-row");
+		row2.append(bar("62%", c.sub));
+		const row3 = $el("span.dbtags-ac-sw-row");
+		row3.append(bar("48%", c.sub));
+		card.append(selRow, row2, row3);
+		sw.append(card, $el("span.dbtags-ac-sw-name", { textContent: t }));
+		return sw;
+	}
+
+	/* (re)render saved/imported presets as swatches in the theme row */
+	#rebuildUserSwatches() {
+		for (const el of this.userSwEls || []) el.remove();
+		this.userSwEls = [];
+		this.swatchEls = this.swatchEls.filter((s) => !(s.dataset.v || "").startsWith("up"));
+		const list = getUserThemes();
+		list.forEach((preset, i) => {
+			const co = preset.colors || {};
+			const c = {
+				bg: co.bg2 || co.bg || "#dddddd",
+				border: co.border || "#999999",
+				sel: co.highlight ? `rgba(${hexRgb(co.highlight)}, 0.18)` : "rgba(127,127,127,0.15)",
+				text: co.text || "#555555",
+				sub: co.sub || "#888888",
+				count: co.count || "#888888",
+			};
+			const sw = this.#makeSwatch(preset.id, preset.name || ("预设" + (i + 1)), c);
+			const del = $el("button.dbtags-ac-sw-del", { textContent: "×" });
+			del.title = "删除此预设";
+			del.onclick = (e) => {
+				e.stopPropagation();
+				this.#deleteUserTheme(preset.id);
+			};
+			sw.append(del);
+			this.userSwEls.push(sw);
+			this.swatchEls.push(sw);
+			this.themeSwRow.append(sw);
+		});
+		this.#refreshSwatches();
+	}
+
+	/* snapshot whatever theme is currently shown as a named preset */
+	#saveCurrentTheme() {
+		const name = prompt("预设名称：", "");
+		if (!name) return;
+		const cs = getComputedStyle(document.documentElement);
+		const g = (n) => cs.getPropertyValue(n).trim();
+		const colors = {
+			bg: g("--dbtags-ac-bg"),
+			bg2: g("--dbtags-ac-bg2"),
+			border: g("--dbtags-ac-border"),
+			text: g("--dbtags-ac-text"),
+			sub: g("--dbtags-ac-sub"),
+			summary: g("--dbtags-ac-summary"),
+			highlight: g("--dbtags-ac-highlight"),
+			count: g("--dbtags-ac-count"),
+			fuzzy: g("--dbtags-ac-fuzzy"),
+		};
+		const list = getUserThemes();
+		list.push({
+			id: "up" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+			name,
+			colors,
+		});
+		saveUserThemes(list);
+		this.#rebuildUserSwatches();
+	}
+
+	/* import preset(s) from a JSON file: [{name,colors}] or {name,colors} */
+	#importTheme() {
+		const inp = $el("input", { type: "file", accept: ".json,application/json" });
+		inp.onchange = () => {
+			const f = inp.files && inp.files[0];
+			if (!f) return;
+			const reader = new FileReader();
+			reader.onload = () => {
+				try {
+					const data = JSON.parse(String(reader.result));
+					const list = getUserThemes();
+					const push = (it) => {
+						const colors = it.colors || it;
+						if (!colors || typeof colors !== "object") return;
+						list.push({
+							id: "up" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+							name: String(it.name || ("预设" + (list.length + 1))),
+							colors,
+						});
+					};
+					if (Array.isArray(data)) {
+						for (const it of data) push(it);
+					} else {
+						push(data);
+					}
+					if (!list.length) throw new Error("empty");
+					saveUserThemes(list);
+					this.#rebuildUserSwatches();
+				} catch {
+					alert("导入失败：不是有效的预设 JSON（支持 {name,colors} 或 [{name,colors}]）");
+				}
+			};
+			reader.readAsText(f);
+		};
+		inp.click();
+	}
+
+	#deleteUserTheme(id) {
+		const list = getUserThemes().filter((p) => p && p.id !== id);
+		saveUserThemes(list);
+		if (Config.get("theme", "dark") === id) this.#set("theme", "dark");
+		this.#rebuildUserSwatches();
+	}
+
+	#buildControls() {
+		const gTheme = this.#group("主题");
+		const swRow = $el("div.dbtags-ac-styler-swatches");
+		this.themeSwRow = swRow;
+		const SWATCH_COLORS = {
+			dark:  { bg:"#33383f", border:"#7a8394", sel:"rgba(77,163,255,0.16)", text:"#e6e6e6", sub:"#b5bac2", count:"#a8c6a8" },
+			light: { bg:"#f7f5f1", border:"#bdb6a8", sel:"rgba(30,111,217,0.12)", text:"#3b3b3b", sub:"#6f6f6f", count:"#4d7a4d" },
+			pink:  { bg:"#fdf0f5", border:"#e38fba", sel:"rgba(236,98,161,0.18)", text:"#53263e", sub:"#8b4e6d", count:"#c34e81" },
+		};
 		for (const [v, t] of [["dark", "黑灰"], ["light", "米白"], ["pink", "喵粉"], ["custom", "自定义"]]) {
-			const sw = $el("button.dbtags-ac-sw", {
-				onclick: () => {
-					this.#set("theme", v);
-					this.#refreshSwatches();
-				},
-			});
-			sw.dataset.v = v;
 			const c = SWATCH_COLORS[v] || { bg: "#dddddd", border: "#999999", sel: "rgba(127,127,127,0.15)", text: "#555555", sub: "#888888", count: "#888888" };
-			const card = $el("span.dbtags-ac-sw-card");
-			card.style.background = c.bg;
-			card.style.borderColor = c.border;
-			const selRow = $el("span.dbtags-ac-sw-row.dbtags-ac-sw-sel");
-			selRow.style.background = c.sel;
-			selRow.append(bar("44%", c.text), bar("14%", c.count));
-			const row2 = $el("span.dbtags-ac-sw-row");
-			row2.append(bar("62%", c.sub));
-			const row3 = $el("span.dbtags-ac-sw-row");
-			row3.append(bar("48%", c.sub));
-			card.append(selRow, row2, row3);
-			sw.append(card, $el("span.dbtags-ac-sw-name", { textContent: t }));
+			const sw = this.#makeSwatch(v, t, c);
 			this.swatchEls.push(sw);
 			swRow.append(sw);
 		}
-		gTheme.append(swRow, $el("div.dbtags-ac-styler-hint", {
-			textContent: "选「自定义」后可逐色取色，改动即时生效",
+		this.#rebuildUserSwatches();
+		const btnRow = $el("div.dbtags-ac-styler-btnrow");
+		btnRow.append(
+			$el("button.dbtags-ac-styler-btn", { textContent: "存为预设", onclick: () => this.#saveCurrentTheme() }),
+			$el("button.dbtags-ac-styler-btn", { textContent: "导入预设", onclick: () => this.#importTheme() }),
+		);
+		gTheme.append(swRow, btnRow, $el("div.dbtags-ac-styler-hint", {
+			textContent: "选「自定义」可逐色取色；「存为预设」把当前配色保存为可复用预设",
 		}));
 		this.pickerBox = $el("div.dbtags-ac-styler-pickers");
 		gTheme.append(this.pickerBox);
