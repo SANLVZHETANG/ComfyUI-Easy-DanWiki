@@ -738,3 +738,44 @@
 	font-size: var(--dbtags-ac-font);
 	padding: 4px 6px;
 }
+
+.dbtags-ac-imgcard {
+	position: fixed;
+	z-index: 10015;
+	background: var(--dbtags-ac-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 6px;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+	max-width: 560px;
+}
+
+.dbtags-ac-imgcard-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
+}
+
+.dbtags-ac-imgcard-title {
+	font-size: var(--dbtags-ac-font);
+	color: var(--dbtags-ac-text);
+}
+
+.dbtags-ac-imgcard-x {
+	cursor: pointer;
+	color: var(--dbtags-ac-sub);
+	padding: 0 4px;
+	font-size: 16px;
+	line-height: 1;
+}
+
+.dbtags-ac-imgcard-x:hover {
+	color: var(--dbtags-ac-text);
+}
+
+.dbtags-ac-imgcard-img {
+	display: block;
+	max-width: min(56vw, 540px);
+	max-height: 72vh;
+}

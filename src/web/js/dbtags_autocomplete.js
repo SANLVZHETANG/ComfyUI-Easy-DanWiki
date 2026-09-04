@@ -609,6 +609,7 @@ class DBTagsAutoComplete {
 		this.el.removeEventListener("click", this._hClick);
 		this.el.removeEventListener("blur", this._hBlur);
 		document.removeEventListener("mousedown", this._hDocDown);
+		this.#closeImageCard();
 		this.wrap?.remove();
 	}
 
@@ -828,16 +829,8 @@ class DBTagsAutoComplete {
 			p.img.onerror = () => { p.img.style.display = "none"; };
 			p.img.src = base + size;
 		};
-		p.img.onclick = () => window.open(base + "large", "_blank");
-		p.img.onmouseenter = null;
-		p.img.onmouseleave = null;
-		if (mode === "small") {
-			p.img.onmouseenter = () => setSrc("large");
-			p.img.onmouseleave = () => setSrc("small");
-			setSrc("small");
-		} else {
-			setSrc("large");
-		}
+		p.img.onclick = () => this.#openImageCard(tag, p.img);
+		setSrc(mode === "small" ? "small" : "large");
 	}
 
 	#token() {
@@ -906,6 +899,7 @@ class DBTagsAutoComplete {
 
 	#onDocDown(e) {
 		this._lastDownTarget = e.target;
+		if (this._imgCard && !this._imgCard.contains(e.target)) this.#closeImageCard();
 		if (this.#visible() && !this.wrap.contains(e.target)) {
 			this.#hide();
 		}
@@ -1045,6 +1039,43 @@ class DBTagsAutoComplete {
 		clearTimeout(this._previewTimer);
 		this._previewTimer = null;
 		if (this._previewEl) this._previewEl.style.display = "none";
+	}
+
+	#openImageCard(tag, anchor) {
+		this.#closeImageCard();
+		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&size=large`;
+		const img = $el("img.dbtags-ac-imgcard-img", { src: url });
+		img.onerror = () => this.#closeImageCard();
+		const card = $el("div.dbtags-ac-imgcard", {}, [
+			$el("div.dbtags-ac-imgcard-head", [
+				$el("div.dbtags-ac-imgcard-title", { textContent: `${tag.name}  ${fmtCount(tag.post_count)}` }),
+				$el("span.dbtags-ac-imgcard-x", { textContent: "×", onclick: () => this.#closeImageCard() }),
+			]),
+			img,
+		]);
+		document.body.append(card);
+		const r = anchor.getBoundingClientRect();
+		const cw = card.offsetWidth;
+		const ch = card.offsetHeight;
+		let left = r.right + 8;
+		if (left + cw > innerWidth - 8) left = r.left - 8 - cw;
+		if (left < 8) left = 8;
+		card.style.left = left + "px";
+		card.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - ch - 8)) + "px";
+		this._imgCard = card;
+		this._cardKey = (e) => {
+			if (e.key === "Escape") this.#closeImageCard();
+		};
+		document.addEventListener("keydown", this._cardKey, true);
+	}
+
+	#closeImageCard() {
+		this._imgCard?.remove();
+		this._imgCard = null;
+		if (this._cardKey) {
+			document.removeEventListener("keydown", this._cardKey, true);
+			this._cardKey = null;
+		}
 	}
 
 	#showToast(title, text) {
@@ -1207,6 +1238,7 @@ class DBTagsAutoComplete {
 	}
 
 	#hide() {
+		this.#closeImageCard();
 		this.selected = null;
 		this.current = [];
 		this._flipUp = undefined;
@@ -1565,7 +1597,7 @@ class Styler {
 			this.#boolRow("示例图", "showImage"),
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#boolRow("图片优先", "panelImg", "false"),
-			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图(悬停放大)"]], "large"),
+			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图（点击查看大图卡）"]], "large"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("括号键导航", "bracketNav"),
 		);
