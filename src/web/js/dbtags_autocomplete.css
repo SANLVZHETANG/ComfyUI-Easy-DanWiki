@@ -102,108 +102,82 @@
 	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.75);
 }
 
-:root.dbtags-theme-amber-retro {
-	/* 琥珀·彩虹：仿自预览图1（近黑琥珀底）+ 上世纪苹果 RGB/CMY 六彩点缀 */
-	--dbtags-ac-bg: #130b03;
-	--dbtags-ac-bg-rgb: 19, 11, 3;
-	--dbtags-ac-bg2: #1c1104;
-	--dbtags-ac-bg2-rgb: 28, 17, 4;
-	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #5c3d10;
-	--dbtags-ac-text: #f5e6c4;
-	--dbtags-ac-sub: #ff9500;
-	--dbtags-ac-highlight: #ffcc00;
-	--dbtags-ac-selected: rgba(255, 204, 0, 0.16);
-	--dbtags-ac-count: #34c759;
-	--dbtags-ac-zh: #5aa7ff;
-	--dbtags-ac-fuzzy: #ff453a;
-	--dbtags-ac-fuzzy-bg: rgba(255, 69, 58, 0.16);
-	--dbtags-ac-font: 13px;
-	--dbtags-ac-row-height: 26px;
-	--dbtags-ac-family: sans-serif;
-	--dbtags-ac-width: 340px;
-	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.12);
-	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.08);
-	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.18);
-}
-
 :root.dbtags-theme-amber-close {
-	/* 琥珀·近色：同系琥珀少量色阶，明暗拉开保证区分度 */
-	--dbtags-ac-bg: #100903;
-	--dbtags-ac-bg-rgb: 16, 9, 3;
-	--dbtags-ac-bg2: #1a1005;
-	--dbtags-ac-bg2-rgb: 26, 16, 5;
+	/* 琥珀·近色：同系琥珀少量色阶，整体更橘，明暗拉开保证区分度 */
+	--dbtags-ac-bg: #150801;
+	--dbtags-ac-bg-rgb: 21, 8, 1;
+	--dbtags-ac-bg2: #221002;
+	--dbtags-ac-bg2-rgb: 34, 16, 2;
 	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #5c3d10;
-	--dbtags-ac-text: #ffd47e;
-	--dbtags-ac-sub: #c08a35;
-	--dbtags-ac-highlight: #ffb020;
-	--dbtags-ac-selected: rgba(255, 176, 32, 0.16);
-	--dbtags-ac-count: #ffce6b;
-	--dbtags-ac-zh: #c08a35;
-	--dbtags-ac-fuzzy: #e0a44e;
-	--dbtags-ac-fuzzy-bg: rgba(224, 164, 78, 0.14);
+	--dbtags-ac-border: #7a4a08;
+	--dbtags-ac-text: #ffb84d;
+	--dbtags-ac-sub: #e08a1f;
+	--dbtags-ac-highlight: #ff9f00;
+	--dbtags-ac-selected: rgba(255, 159, 0, 0.18);
+	--dbtags-ac-count: #ffcc66;
+	--dbtags-ac-zh: #d98a24;
+	--dbtags-ac-fuzzy: #ff9500;
+	--dbtags-ac-fuzzy-bg: rgba(255, 149, 0, 0.14);
 	--dbtags-ac-font: 13px;
 	--dbtags-ac-row-height: 26px;
 	--dbtags-ac-family: sans-serif;
 	--dbtags-ac-width: 340px;
 	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(255, 176, 32, 0.14);
-	--dbtags-ac-toggle-bg: rgba(255, 176, 32, 0.10);
-	--dbtags-ac-toggle-hover: rgba(255, 176, 32, 0.22);
+	--dbtags-ac-pill-bg: rgba(255, 159, 0, 0.14);
+	--dbtags-ac-toggle-bg: rgba(255, 159, 0, 0.10);
+	--dbtags-ac-toggle-hover: rgba(255, 159, 0, 0.22);
 }
 
 :root.dbtags-theme-amber-mono {
-	/* 琥珀·纯黑：只有琥珀与黑，明度渐变 */
+	/* 琥珀·纯黑：只有琥珀与黑，明度渐变，整体更橘 */
 	--dbtags-ac-bg: #000000;
 	--dbtags-ac-bg-rgb: 0, 0, 0;
-	--dbtags-ac-bg2: #0d0800;
-	--dbtags-ac-bg2-rgb: 13, 8, 0;
+	--dbtags-ac-bg2: #120800;
+	--dbtags-ac-bg2-rgb: 18, 8, 0;
 	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #5c4100;
-	--dbtags-ac-text: #ffc93c;
-	--dbtags-ac-sub: #a57a00;
-	--dbtags-ac-highlight: #ffb300;
-	--dbtags-ac-selected: rgba(255, 179, 0, 0.18);
-	--dbtags-ac-count: #ffc93c;
-	--dbtags-ac-zh: #a57a00;
-	--dbtags-ac-fuzzy: #d99b00;
-	--dbtags-ac-fuzzy-bg: rgba(217, 155, 0, 0.15);
+	--dbtags-ac-border: #7a4d00;
+	--dbtags-ac-text: #ffb340;
+	--dbtags-ac-sub: #b37200;
+	--dbtags-ac-highlight: #ff9500;
+	--dbtags-ac-selected: rgba(255, 149, 0, 0.18);
+	--dbtags-ac-count: #ffb340;
+	--dbtags-ac-zh: #b37200;
+	--dbtags-ac-fuzzy: #e08a00;
+	--dbtags-ac-fuzzy-bg: rgba(224, 138, 0, 0.15);
 	--dbtags-ac-font: 13px;
 	--dbtags-ac-row-height: 26px;
 	--dbtags-ac-family: sans-serif;
 	--dbtags-ac-width: 340px;
 	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(255, 179, 0, 0.14);
-	--dbtags-ac-toggle-bg: rgba(255, 179, 0, 0.10);
-	--dbtags-ac-toggle-hover: rgba(255, 179, 0, 0.22);
+	--dbtags-ac-pill-bg: rgba(255, 149, 0, 0.14);
+	--dbtags-ac-toggle-bg: rgba(255, 149, 0, 0.10);
+	--dbtags-ac-toggle-hover: rgba(255, 149, 0, 0.22);
 }
 
 :root.dbtags-theme-amber-pick {
-	/* 琥珀·取色：直接取自预览图1量化调色板 */
-	--dbtags-ac-bg: #130b03;
-	--dbtags-ac-bg-rgb: 19, 11, 3;
-	--dbtags-ac-bg2: #1a0f05;
-	--dbtags-ac-bg2-rgb: 26, 15, 5;
+	/* 琥珀·取色：图1 暗琥珀底 + 提饱和去灰，向橘靠拢 */
+	--dbtags-ac-bg: #1a0e04;
+	--dbtags-ac-bg-rgb: 26, 14, 4;
+	--dbtags-ac-bg2: #261407;
+	--dbtags-ac-bg2-rgb: 38, 20, 7;
 	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #4b2f0b;
-	--dbtags-ac-text: #c28321;
-	--dbtags-ac-sub: #6c4209;
-	--dbtags-ac-highlight: #c28321;
-	--dbtags-ac-selected: rgba(194, 131, 33, 0.18);
-	--dbtags-ac-count: #5c3605;
-	--dbtags-ac-zh: #6c4209;
-	--dbtags-ac-fuzzy: #c28321;
-	--dbtags-ac-fuzzy-bg: rgba(194, 131, 33, 0.15);
+	--dbtags-ac-border: #8a5a14;
+	--dbtags-ac-text: #e8a83c;
+	--dbtags-ac-sub: #b06e12;
+	--dbtags-ac-highlight: #ff9f1a;
+	--dbtags-ac-selected: rgba(255, 159, 26, 0.18);
+	--dbtags-ac-count: #d98c26;
+	--dbtags-ac-zh: #96601a;
+	--dbtags-ac-fuzzy: #ff9f1a;
+	--dbtags-ac-fuzzy-bg: rgba(255, 159, 26, 0.16);
 	--dbtags-ac-font: 13px;
 	--dbtags-ac-row-height: 26px;
 	--dbtags-ac-family: sans-serif;
 	--dbtags-ac-width: 340px;
 	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(194, 131, 33, 0.16);
-	--dbtags-ac-toggle-bg: rgba(194, 131, 33, 0.12);
-	--dbtags-ac-toggle-hover: rgba(194, 131, 33, 0.24);
+	--dbtags-ac-pill-bg: rgba(232, 168, 60, 0.18);
+	--dbtags-ac-toggle-bg: rgba(232, 168, 60, 0.12);
+	--dbtags-ac-toggle-hover: rgba(232, 168, 60, 0.24);
 }
 
 /* frosted glass when translucent */

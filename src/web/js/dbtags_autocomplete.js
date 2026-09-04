@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp43";
+	url.search = "?v=cp44";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -175,7 +175,6 @@ function applyConfig() {
 	root.classList.toggle("dbtags-theme-light", theme === "light");
 	root.classList.toggle("dbtags-theme-pink", theme === "pink");
 	root.classList.toggle("dbtags-theme-mint", theme === "mint");
-	root.classList.toggle("dbtags-theme-amber-retro", theme === "amber-retro");
 	root.classList.toggle("dbtags-theme-amber-close", theme === "amber-close");
 	root.classList.toggle("dbtags-theme-amber-mono", theme === "amber-mono");
 	root.classList.toggle("dbtags-theme-amber-pick", theme === "amber-pick");
@@ -1966,15 +1965,13 @@ class Styler {
 			light: { bg:"#f7f5f1", border:"#bdb6a8", sel:"rgba(30,111,217,0.12)", text:"#3b3b3b", sub:"#6f6f6f", count:"#4d7a4d" },
 			pink:  { bg:"#fdf0f5", border:"#e38fba", sel:"rgba(236,98,161,0.18)", text:"#53263e", sub:"#8b4e6d", count:"#c34e81" },
 			mint:  { bg:"#e8f8ec", border:"#93bca1", sel:"rgba(33,150,83,0.16)", text:"#1f4730", sub:"#5e8a6d", count:"#2f7d4f" },
-			"amber-retro": { bg:"#1c1104", border:"#5c3d10", sel:"rgba(255,204,0,0.16)", text:"#f5e6c4", sub:"#ff9500", count:"#34c759" },
-			"amber-close": { bg:"#1a1005", border:"#5c3d10", sel:"rgba(255,176,32,0.16)", text:"#ffd47e", sub:"#c08a35", count:"#ffce6b" },
-			"amber-mono": { bg:"#0d0800", border:"#5c4100", sel:"rgba(255,179,0,0.18)", text:"#ffc93c", sub:"#a57a00", count:"#ffc93c" },
-			"amber-pick": { bg:"#1a0f05", border:"#4b2f0b", sel:"rgba(194,131,33,0.18)", text:"#c28321", sub:"#6c4209", count:"#6c4209" },
+			"amber-close": { bg:"#221002", border:"#7a4a08", sel:"rgba(255,159,0,0.18)", text:"#ffb84d", sub:"#e08a1f", count:"#ffcc66" },
+			"amber-mono": { bg:"#120800", border:"#7a4d00", sel:"rgba(255,149,0,0.18)", text:"#ffb340", sub:"#b37200", count:"#ffb340" },
+			"amber-pick": { bg:"#261407", border:"#8a5a14", sel:"rgba(255,159,26,0.18)", text:"#e8a83c", sub:"#b06e12", count:"#d98c26" },
 		};
 		for (const [v, t] of [
 			["dark", "黑灰"], ["light", "米白"], ["pink", "喵粉"],
 			["mint", "薄荷绿"],
-			["amber-retro", "琥珀·彩虹"],
 			["amber-close", "琥珀·近色"],
 			["amber-mono", "琥珀·纯黑"],
 			["amber-pick", "琥珀·取色"],
