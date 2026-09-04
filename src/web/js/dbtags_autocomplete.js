@@ -1610,6 +1610,7 @@ class Styler {
 	}
 
 	close() {
+		this._fpsRun = false;
 		this.demoAC?.destroy();
 		this.demoAC = null;
 		this.el.remove();
@@ -1875,7 +1876,9 @@ class Styler {
 		this.perfStats = $el("div.dbtags-ac-styler-hint");
 		this.perfSeg = $el("div.dbtags-ac-styler-hint");
 		this.perfBench = $el("div.dbtags-ac-styler-perf");
+		this.perfFps = $el("div.dbtags-ac-styler-hint");
 		this.perfBox = $el("div", {}, [
+			this.perfFps,
 			this.perfStats,
 			this.perfSeg,
 			$el("div.dbtags-ac-styler-row", {}, [
@@ -1898,11 +1901,13 @@ class Styler {
 			perfCb.checked = PERF_ON;
 			this.perfBox.style.display = PERF_ON ? "" : "none";
 			if (!PERF_ON) {
+				this.perfFps.textContent = "";
 				this.perfStats.textContent = "";
 				this.perfSeg.textContent = "";
 				this.perfBench.replaceChildren();
 				return;
 			}
+			this.#fpsMonitorStart();
 			const st = Perf.stats();
 			const mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
 			this.perfStats.textContent =
@@ -2076,6 +2081,56 @@ class Styler {
 			(dropped > 0 ? ` · 被热度过滤 ${dropped}` : "") +
 			(bodyHits ? ` · 其中正文匹配 ${bodyHits}` : "") +
 			(PERF_ON ? ` · 耗时 ${_ltMs}ms` : "");
+	}
+
+	#fpsMonitorStart() {
+		if (this._fpsRun) return;
+		this._fpsRun = true;
+		this._ltN = 0;
+		this._ltMs = 0;
+		let po = null;
+		if (typeof PerformanceObserver === "function") {
+			try {
+				po = new PerformanceObserver((list) => {
+					for (const e of list.getEntries()) {
+						this._ltN++;
+						this._ltMs += e.duration;
+					}
+				});
+				po.observe({ entryTypes: ["longtask"] });
+			} catch {
+				po = null;
+			}
+		}
+		this._ltPo = po;
+		let frames = 0;
+		let last = performance.now();
+		const tick = () => {
+			if (!this._fpsRun || !PERF_ON || !this.perfBox?.isConnected) {
+				this._fpsRun = false;
+				if (this._ltPo) {
+					try {
+						this._ltPo.disconnect();
+					} catch {
+						void 0;
+					}
+					this._ltPo = null;
+				}
+				return;
+			}
+			frames++;
+			const now = performance.now();
+			if (now - last >= 1000) {
+				const fps = Math.round((frames * 1000) / (now - last));
+				this.perfFps.textContent =
+					`实时 ${fps}fps · 主线程长任务(>50ms) 本次开面板累计 ${this._ltN} 次 / ${Math.round(this._ltMs)}ms` +
+					(fps >= 55 && this._ltN === 0 ? "（健康）" : "（有掉帧，见下方定位建议或诊断日志）");
+				frames = 0;
+				last = now;
+			}
+			requestAnimationFrame(tick);
+		};
+		requestAnimationFrame(tick);
 	}
 
 	#runBench() {
