@@ -671,21 +671,25 @@
 .dbtags-ac-styler-duo .dbtags-ac-preview-wrap {
 	flex: 0 0 auto;
 	width: auto;
+	align-self: stretch;
 }
 
 .dbtags-ac-styler-duolist {
-	flex: 1 1 auto;
-	min-width: 260px;
-	max-width: 560px;
+	flex: 1 1 0;
+	min-width: 280px;
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 }
 
+.dbtags-ac-styler-duo {
+	grid-template-columns: none;
+}
+
 .dbtags-ac-styler-duolist .dbtags-ac-styler-lab-list {
 	flex: 1;
-	min-height: 0;
-	max-height: 440px;
+	min-height: 180px;
+	max-height: none;
 	overflow-y: auto;
 }
 
