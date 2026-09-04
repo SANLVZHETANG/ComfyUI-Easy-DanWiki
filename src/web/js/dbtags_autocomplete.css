@@ -656,9 +656,10 @@
 	gap: 10px;
 }
 
+/* true row layout: items keep natural height, no stretch monster */
 .dbtags-ac-styler-duo {
 	display: flex;
-	align-items: stretch;
+	align-items: flex-start;
 	gap: 10px;
 	min-width: 0;
 }
@@ -673,8 +674,9 @@
 }
 
 .dbtags-ac-styler-duo .dbtags-ac-styler-group {
-	flex: 1;
-	min-width: 0;
+	flex: 0 0 auto;
+	width: 320px;
+	max-width: 100%;
 }
 
 .dbtags-ac-preview-wrap {
