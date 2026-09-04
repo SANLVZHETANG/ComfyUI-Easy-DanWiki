@@ -682,10 +682,6 @@
 	gap: 6px;
 }
 
-.dbtags-ac-styler-duo {
-	grid-template-columns: none;
-}
-
 .dbtags-ac-styler-duolist .dbtags-ac-styler-lab-list {
 	flex: 1;
 	min-height: 180px;
