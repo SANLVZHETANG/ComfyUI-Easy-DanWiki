@@ -27,6 +27,43 @@ function onIndexReady(cb) {
 	if (index) cb();
 	else _indexReadyCbs.push(cb);
 }
+
+/* ---- local font files served from the plugin fonts/ dir ---- */
+const _fontFams = [];
+const _fontsReadyCbs = [];
+function onFontsReady(cb) {
+	if (_fontFams.length) cb();
+	else _fontsReadyCbs.push(cb);
+}
+async function loadFonts() {
+	let names = [];
+	try {
+		const resp = await fetch("/dbtags/fonts");
+		if (!resp.ok) return;
+		names = await resp.json();
+	} catch {
+		return;
+	}
+	for (const n of names) {
+		const fam = n.replace(/\.[a-z0-9]+$/i, "");
+		try {
+			const ff = new FontFace(fam, `url("/dbtags/font?name=${encodeURIComponent(n)}")`);
+			await ff.load();
+			document.fonts.add(ff);
+			_fontFams.push(fam);
+		} catch {
+			void 0;
+		}
+	}
+	dlog("C", `fonts loaded: ${_fontFams.join(", ") || "none"}`);
+	for (const cb of _fontsReadyCbs.splice(0)) {
+		try {
+			cb();
+		} catch {
+			void 0;
+		}
+	}
+}
 let TAG_MAP = null;
 
 function getTagMap() {
@@ -137,6 +174,9 @@ function applyConfig() {
 	root.style.setProperty("--dbtags-ac-width", w + "px");
 	root.style.setProperty("--dbtags-ac-font", f + "px");
 	root.style.setProperty("--dbtags-ac-alpha", String(op / 100));
+	root.style.setProperty("--dbtags-ac-row-height", Config.getNum("rowH", 26) + "px");
+	const fam = Config.get("fontFamily", "").replace(/"/g, "");
+	root.style.setProperty("--dbtags-ac-family", fam ? `"${fam}", sans-serif` : "sans-serif");
 }
 
 function dlog(phase, ...args) {
@@ -1363,6 +1403,8 @@ const SETTING_DEFS = {
 	imgMode: "large",
 	navMode: "A",
 	widthMode: "fit",
+	fontFamily: "",
+	rowH: 26,
 	width: 340,
 	font: 13,
 	customVars: "",
@@ -1513,6 +1555,26 @@ class Styler {
 		]);
 	}
 
+	#fontRow() {
+		const sel = $el("select");
+		const fill = () => {
+			const cur = Config.get("fontFamily", "");
+			sel.replaceChildren(
+				$el("option", { value: "", textContent: "默认（sans-serif）" }),
+				..._fontFams.map((f) => $el("option", { value: f, textContent: f })),
+			);
+			sel.value = _fontFams.includes(cur) ? cur : "";
+		};
+		fill();
+		onFontsReady(() => {
+			if (sel.isConnected) fill();
+		});
+		sel.onchange = () => this.#set("fontFamily", sel.value);
+		return $el("div.dbtags-ac-styler-row", {}, [
+			$el("span.dbtags-ac-styler-label", { textContent: "界面字体" }), sel,
+		]);
+	}
+
 	#refreshPreviewPanel() {
 		if (!index) return;
 		const tag = getTagMap().get(normName("1girl")) || index.tags[0];
@@ -1583,6 +1645,8 @@ class Styler {
 		gSize.append(
 			this.#sliderRow("透明度", "opacity", 25, 100, 100, (x) => x + "%"),
 			this.#numRow("字号", "font", 13, "px"),
+			this.#fontRow(),
+			this.#numSliderRow("行高", "rowH", 20, 60, 26, "px"),
 			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
 			this.#numSliderRow("列表宽度", "width", 240, 800, 340, "px"),
 		);
@@ -1903,6 +1967,7 @@ app.registerExtension({
 	name: ID,
 	init() {
 		applyConfig();
+		loadFonts();
 		const STRING = ComfyWidgets.STRING;
 		ComfyWidgets.STRING = function (node, inputName, inputData) {
 			const r = STRING.apply(this, arguments);

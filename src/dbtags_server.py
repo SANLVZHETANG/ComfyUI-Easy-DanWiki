@@ -5,6 +5,8 @@ Backend routes for the danbooru autocomplete extension.
 READ-ONLY on the source dataset (danbooru-general-tags). Serves:
   GET /dbtags/status   -> json status (index info, manifest info, uptime)
   GET /dbtags/image    -> example image for a tag (whitelisted via manifest)
+  GET /dbtags/fonts    -> font file names in the plugin fonts/ dir
+  GET /dbtags/font     -> one font file (?name=, extension whitelisted)
 
 Optional debug log (DEBUG=True) writes request traces to debug.log.
 """
@@ -21,6 +23,14 @@ MANIFEST_FILE = os.path.join(BASE, "manifest.json")
 INDEX_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "web", "js", "data", "tags_index.json")
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+FONT_EXTS = (".ttf", ".otf", ".woff", ".woff2")
+FONT_MIME = {
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+}
 
 DEBUG = True
 DEBUG_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -90,6 +100,7 @@ async def get_status(request):
         "debug": DEBUG,
         "index": meta,
         "manifest_entries": len(manifest),
+        "fonts": _list_fonts(),
         "dataset_dir": BASE,
     })
 
@@ -123,6 +134,34 @@ async def get_image(request):
         return web.Response(status=404, text="file missing")
     _log("image 200: tag=%s size=%s %s" % (tag, size, path))
     return web.FileResponse(full)
+
+
+def _list_fonts():
+    if not os.path.isdir(FONT_DIR):
+        return []
+    return sorted(n for n in os.listdir(FONT_DIR)
+                  if n.lower().endswith(FONT_EXTS))
+
+
+@PromptServer.instance.routes.get("/dbtags/fonts")
+async def get_fonts(request):
+    return web.json_response(_list_fonts())
+
+
+@PromptServer.instance.routes.get("/dbtags/font")
+async def get_font(request):
+    name = request.query.get("name", "")
+    base = os.path.basename(name)
+    full = os.path.abspath(os.path.join(FONT_DIR, base))
+    if (not base or not base.lower().endswith(FONT_EXTS)
+            or not full.startswith(os.path.abspath(FONT_DIR) + os.sep)
+            or not os.path.isfile(full)):
+        _log("font 404: name=%s" % name)
+        return web.Response(status=404, text="no such font")
+    resp = web.FileResponse(full)
+    resp.headers["Content-Type"] = FONT_MIME[os.path.splitext(base)[1].lower()]
+    _log("font 200: %s" % base)
+    return resp
 
 
 def get_ext_dir(subpath=None):

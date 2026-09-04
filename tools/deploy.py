@@ -27,6 +27,32 @@ FILES = [
 ]
 
 
+def sync_dir(rel, dry):
+    """Mirror a src/ subdirectory (e.g. fonts/) file-by-file into the plugin."""
+    sdir = os.path.join(SRC, rel)
+    if not os.path.isdir(sdir):
+        return 0
+    ddir = os.path.join(DST, rel)
+    changed = 0
+    for name in sorted(os.listdir(sdir)):
+        s = os.path.join(sdir, name)
+        if not os.path.isfile(s):
+            continue
+        d = os.path.join(ddir, name)
+        same = os.path.isfile(d) and open(s, "rb").read() == open(d, "rb").read()
+        if same:
+            print("  same    %s" % os.path.join(rel, name))
+            continue
+        changed += 1
+        if dry:
+            print("  would    %s -> %s" % (os.path.join(rel, name), d))
+            continue
+        os.makedirs(ddir, exist_ok=True)
+        shutil.copy2(s, d)
+        print("  copied  %s" % os.path.join(rel, name))
+    return changed
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true")
@@ -52,6 +78,9 @@ def main():
         os.makedirs(os.path.dirname(d), exist_ok=True)
         shutil.copy2(s, d)
         print("  copied  %s" % rel)
+    changed += sync_dir("fonts", args.dry_run)
+    if not args.dry_run:
+        os.makedirs(os.path.join(DST, "fonts"), exist_ok=True)
     print("deploy done: %d file(s) updated" % changed)
     return 0
 
