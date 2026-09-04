@@ -673,20 +673,25 @@
 	width: auto;
 }
 
-.dbtags-ac-styler-duo .dbtags-ac-styler-lab {
+.dbtags-ac-styler-duolist {
 	flex: 1 1 auto;
 	min-width: 260px;
 	max-width: 560px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 }
 
-.dbtags-ac-styler-duo .dbtags-ac-styler-lab-list {
+.dbtags-ac-styler-duolist .dbtags-ac-styler-lab-list {
+	flex: 1;
+	min-height: 0;
 	max-height: 440px;
 	overflow-y: auto;
 }
 
 /* wiki settings card: compact block under the duo row */
 .dbtags-ac-styler-prev > .dbtags-ac-styler-group {
-	width: 400px;
+	width: 300px;
 	max-width: 100%;
 }
 

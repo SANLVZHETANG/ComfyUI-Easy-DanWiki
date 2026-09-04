@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp34";
+	url.search = "?v=cp35";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -2045,10 +2045,11 @@ class Styler {
 		this.labInput.oninput = () => this.#labRefresh();
 		this.labList = mk("dbtags-ac-list.dbtags-ac-styler-lab-list");
 		this.labStats = $el("div.dbtags-ac-styler-lab-stats");
-		const lab = $el("div.dbtags-ac-styler-lab", {}, [
+		const labHead = $el("div.dbtags-ac-styler-lab", {}, [
 			$el("div.dbtags-ac-styler-lab-title", { textContent: "搜索试验台（与真实补全同一管线）" }),
-			this.labInput, this.labList, this.labStats,
+			this.labInput,
 		]);
+		const labBody = mk("dbtags-ac-styler-duolist", [this.labList, this.labStats]);
 		this.pTitle = $el("div.dbtags-ac-panel-title", { textContent: "1girl  8.3M" });
 		this.pSummary = $el("div.dbtags-ac-panel-summary", { textContent: "（数据加载后显示真实词条）" });
 		this.pLinks = mk("dbtags-ac-panel-links", []);
@@ -2067,10 +2068,10 @@ class Styler {
 			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（下方/右侧面板设置即时生效）" }),
 			this.demoInput,
 		]);
-		// PN1 layout: lab list beside the wiki example panel;
-		// the wiki settings card becomes its own compact block below
-		const duo = $el("div.dbtags-ac-styler-duo", {}, [lab, this.panelWrap]);
-		this.prev.append(demo, duo, this.gPanel);
+		// PN2 fix: input row sits above the duo so list and panel share one
+		// top edge; demo and the compact settings card move below
+		const duo = $el("div.dbtags-ac-styler-duo", {}, [labBody, this.panelWrap]);
+		this.prev.append(labHead, duo, demo, this.gPanel);
 		this.#syncPreviewPanel();
 		this.#refreshPreviewPanel();
 		onIndexReady(() => {
