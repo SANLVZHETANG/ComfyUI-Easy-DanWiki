@@ -638,6 +638,13 @@
 	cursor: pointer;
 }
 
+/* scroll columns must never squash their children: an overflow-hidden panel
+   would otherwise collapse to 0 height when the column content is tall */
+.dbtags-ac-styler-prev > *,
+.dbtags-ac-styler-ctrl > * {
+	flex-shrink: 0;
+}
+
 .dbtags-ac-styler-prev {
 	border: 1px dashed var(--dbtags-ac-border);
 	border-radius: 6px;
