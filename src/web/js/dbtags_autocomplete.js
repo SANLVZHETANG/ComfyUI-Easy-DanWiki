@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp42";
+	url.search = "?v=cp43";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -174,6 +174,11 @@ function applyConfig() {
 	root.classList.toggle("dbtags-theme-dark", theme === "dark");
 	root.classList.toggle("dbtags-theme-light", theme === "light");
 	root.classList.toggle("dbtags-theme-pink", theme === "pink");
+	root.classList.toggle("dbtags-theme-mint", theme === "mint");
+	root.classList.toggle("dbtags-theme-amber-retro", theme === "amber-retro");
+	root.classList.toggle("dbtags-theme-amber-close", theme === "amber-close");
+	root.classList.toggle("dbtags-theme-amber-mono", theme === "amber-mono");
+	root.classList.toggle("dbtags-theme-amber-pick", theme === "amber-pick");
 	root.classList.toggle("dbtags-theme-custom", theme === "custom" || isUserTheme);
 	root.classList.toggle("dbtags-width-fixed", Config.get("widthMode", "fit") === "fixed");
 	// inline custom vars beat any theme class block; wipe first so built-ins stay clean
@@ -1960,8 +1965,21 @@ class Styler {
 			dark:  { bg:"#33383f", border:"#7a8394", sel:"rgba(77,163,255,0.16)", text:"#e6e6e6", sub:"#b5bac2", count:"#a8c6a8" },
 			light: { bg:"#f7f5f1", border:"#bdb6a8", sel:"rgba(30,111,217,0.12)", text:"#3b3b3b", sub:"#6f6f6f", count:"#4d7a4d" },
 			pink:  { bg:"#fdf0f5", border:"#e38fba", sel:"rgba(236,98,161,0.18)", text:"#53263e", sub:"#8b4e6d", count:"#c34e81" },
+			mint:  { bg:"#e8f8ec", border:"#93bca1", sel:"rgba(33,150,83,0.16)", text:"#1f4730", sub:"#5e8a6d", count:"#2f7d4f" },
+			"amber-retro": { bg:"#1c1104", border:"#5c3d10", sel:"rgba(255,204,0,0.16)", text:"#f5e6c4", sub:"#ff9500", count:"#34c759" },
+			"amber-close": { bg:"#1a1005", border:"#5c3d10", sel:"rgba(255,176,32,0.16)", text:"#ffd47e", sub:"#c08a35", count:"#ffce6b" },
+			"amber-mono": { bg:"#0d0800", border:"#5c4100", sel:"rgba(255,179,0,0.18)", text:"#ffc93c", sub:"#a57a00", count:"#ffc93c" },
+			"amber-pick": { bg:"#1a0f05", border:"#4b2f0b", sel:"rgba(194,131,33,0.18)", text:"#c28321", sub:"#6c4209", count:"#6c4209" },
 		};
-		for (const [v, t] of [["dark", "黑灰"], ["light", "米白"], ["pink", "喵粉"], ["custom", "自定义"]]) {
+		for (const [v, t] of [
+			["dark", "黑灰"], ["light", "米白"], ["pink", "喵粉"],
+			["mint", "薄荷绿"],
+			["amber-retro", "琥珀·彩虹"],
+			["amber-close", "琥珀·近色"],
+			["amber-mono", "琥珀·纯黑"],
+			["amber-pick", "琥珀·取色"],
+			["custom", "自定义"],
+		]) {
 			const c = SWATCH_COLORS[v] || { bg: "#dddddd", border: "#999999", sel: "rgba(127,127,127,0.15)", text: "#555555", sub: "#888888", count: "#888888" };
 			const sw = this.#makeSwatch(v, t, c);
 			this.swatchEls.push(sw);

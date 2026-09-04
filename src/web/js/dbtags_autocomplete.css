@@ -76,6 +76,136 @@
 	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.75);
 }
 
+:root.dbtags-theme-mint {
+	/* 薄荷绿：仿自预览图2（浅薄荷底 + 深绿文字 + 暖黄点缀，无紫色） */
+	--dbtags-ac-bg: #c7edcc;
+	--dbtags-ac-bg-rgb: 199, 237, 204;
+	--dbtags-ac-bg2: #e8f8ec;
+	--dbtags-ac-bg2-rgb: 232, 248, 236;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #93bca1;
+	--dbtags-ac-text: #1f4730;
+	--dbtags-ac-sub: #5e8a6d;
+	--dbtags-ac-highlight: #219653;
+	--dbtags-ac-selected: rgba(33, 150, 83, 0.16);
+	--dbtags-ac-count: #2f7d4f;
+	--dbtags-ac-zh: #5e8a6d;
+	--dbtags-ac-fuzzy: #c49b2f;
+	--dbtags-ac-fuzzy-bg: rgba(196, 155, 47, 0.14);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-family: sans-serif;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.6);
+	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.5);
+	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.75);
+}
+
+:root.dbtags-theme-amber-retro {
+	/* 琥珀·彩虹：仿自预览图1（近黑琥珀底）+ 上世纪苹果 RGB/CMY 六彩点缀 */
+	--dbtags-ac-bg: #130b03;
+	--dbtags-ac-bg-rgb: 19, 11, 3;
+	--dbtags-ac-bg2: #1c1104;
+	--dbtags-ac-bg2-rgb: 28, 17, 4;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #5c3d10;
+	--dbtags-ac-text: #f5e6c4;
+	--dbtags-ac-sub: #ff9500;
+	--dbtags-ac-highlight: #ffcc00;
+	--dbtags-ac-selected: rgba(255, 204, 0, 0.16);
+	--dbtags-ac-count: #34c759;
+	--dbtags-ac-zh: #5aa7ff;
+	--dbtags-ac-fuzzy: #ff453a;
+	--dbtags-ac-fuzzy-bg: rgba(255, 69, 58, 0.16);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-family: sans-serif;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.12);
+	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.08);
+	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.18);
+}
+
+:root.dbtags-theme-amber-close {
+	/* 琥珀·近色：同系琥珀少量色阶，明暗拉开保证区分度 */
+	--dbtags-ac-bg: #100903;
+	--dbtags-ac-bg-rgb: 16, 9, 3;
+	--dbtags-ac-bg2: #1a1005;
+	--dbtags-ac-bg2-rgb: 26, 16, 5;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #5c3d10;
+	--dbtags-ac-text: #ffd47e;
+	--dbtags-ac-sub: #c08a35;
+	--dbtags-ac-highlight: #ffb020;
+	--dbtags-ac-selected: rgba(255, 176, 32, 0.16);
+	--dbtags-ac-count: #ffce6b;
+	--dbtags-ac-zh: #c08a35;
+	--dbtags-ac-fuzzy: #e0a44e;
+	--dbtags-ac-fuzzy-bg: rgba(224, 164, 78, 0.14);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-family: sans-serif;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 176, 32, 0.14);
+	--dbtags-ac-toggle-bg: rgba(255, 176, 32, 0.10);
+	--dbtags-ac-toggle-hover: rgba(255, 176, 32, 0.22);
+}
+
+:root.dbtags-theme-amber-mono {
+	/* 琥珀·纯黑：只有琥珀与黑，明度渐变 */
+	--dbtags-ac-bg: #000000;
+	--dbtags-ac-bg-rgb: 0, 0, 0;
+	--dbtags-ac-bg2: #0d0800;
+	--dbtags-ac-bg2-rgb: 13, 8, 0;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #5c4100;
+	--dbtags-ac-text: #ffc93c;
+	--dbtags-ac-sub: #a57a00;
+	--dbtags-ac-highlight: #ffb300;
+	--dbtags-ac-selected: rgba(255, 179, 0, 0.18);
+	--dbtags-ac-count: #ffc93c;
+	--dbtags-ac-zh: #a57a00;
+	--dbtags-ac-fuzzy: #d99b00;
+	--dbtags-ac-fuzzy-bg: rgba(217, 155, 0, 0.15);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-family: sans-serif;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(255, 179, 0, 0.14);
+	--dbtags-ac-toggle-bg: rgba(255, 179, 0, 0.10);
+	--dbtags-ac-toggle-hover: rgba(255, 179, 0, 0.22);
+}
+
+:root.dbtags-theme-amber-pick {
+	/* 琥珀·取色：直接取自预览图1量化调色板 */
+	--dbtags-ac-bg: #130b03;
+	--dbtags-ac-bg-rgb: 19, 11, 3;
+	--dbtags-ac-bg2: #1a0f05;
+	--dbtags-ac-bg2-rgb: 26, 15, 5;
+	--dbtags-ac-alpha: 1;
+	--dbtags-ac-border: #4b2f0b;
+	--dbtags-ac-text: #c28321;
+	--dbtags-ac-sub: #6c4209;
+	--dbtags-ac-highlight: #c28321;
+	--dbtags-ac-selected: rgba(194, 131, 33, 0.18);
+	--dbtags-ac-count: #5c3605;
+	--dbtags-ac-zh: #6c4209;
+	--dbtags-ac-fuzzy: #c28321;
+	--dbtags-ac-fuzzy-bg: rgba(194, 131, 33, 0.15);
+	--dbtags-ac-font: 13px;
+	--dbtags-ac-row-height: 26px;
+	--dbtags-ac-family: sans-serif;
+	--dbtags-ac-width: 340px;
+	--dbtags-ac-panel-width: 290px;
+	--dbtags-ac-pill-bg: rgba(194, 131, 33, 0.16);
+	--dbtags-ac-toggle-bg: rgba(194, 131, 33, 0.12);
+	--dbtags-ac-toggle-hover: rgba(194, 131, 33, 0.24);
+}
+
 /* frosted glass when translucent */
 .dbtags-ac-list,
 .dbtags-ac-panel {
