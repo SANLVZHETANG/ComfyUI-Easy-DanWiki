@@ -52,7 +52,7 @@ const Config = {
 	},
 	getNum(k, dflt) {
 		const v = parseInt(Config.get(k, ""), 10);
-		return Number.isFinite(v) && v > 0 ? v : dflt;
+		return Number.isFinite(v) && v >= 0 ? v : dflt;
 	},
 };
 
@@ -239,19 +239,15 @@ function typeRank(mt) {
 
 /* ---- candidate list limits (P10) ---- */
 function applyLimit(results) {
-	const mode = Config.get("mode", "pc");
-	if (mode === "all") {
+	if (Config.get("mode", "limit") === "all") {
 		// show everything (safety cap 500), report the true total
 		return { list: results.slice(0, 500), total: results.length };
 	}
-	if (mode === "count") {
-		const cap = Config.getNum("maxCount", 30);
-		return { list: results.slice(0, cap), total: results.length };
-	}
-	// post_count priority: drop tags below the threshold, render up to 50
+	// limit mode: heat filter (minPost, 0 = off) AND count cap, both always active
 	const minPc = Config.getNum("minPost", 500);
-	const filtered = results.filter((r) => r.tag.post_count >= minPc);
-	return { list: filtered.slice(0, 50), total: filtered.length, dropped: results.length - filtered.length, minPc };
+	const filtered = minPc > 0 ? results.filter((r) => r.tag.post_count >= minPc) : results;
+	const cap = Config.getNum("maxCount", 50);
+	return { list: filtered.slice(0, cap), total: filtered.length, dropped: results.length - filtered.length, minPc };
 }
 
 /* ---- wiki-body content search（正文子串匹配） ---- */
@@ -1322,9 +1318,9 @@ const SETTING_DEFS = {
 	panelImg: "false",
 	bracketNav: "true",
 	debug: "false",
-	mode: "pc",
+	mode: "limit",
 	minPost: 500,
-	maxCount: 30,
+	maxCount: 50,
 	imgMode: "large",
 	navMode: "A",
 	widthMode: "fit",
@@ -1404,7 +1400,6 @@ class Styler {
 		applyConfig();
 		for (const ac of AC_INSTANCES) ac.refreshPrefs();
 		this.#syncPreviewPanel();
-		this.#syncModeRows();
 		this.#refreshPreviewPanel();
 		this.#labRefresh();
 	}
@@ -1452,7 +1447,7 @@ class Styler {
 		]);
 		inp.oninput = () => {
 			const v = parseInt(inp.value, 10);
-			if (!Number.isFinite(v) || v < 1) return;
+			if (!Number.isFinite(v) || v < (key === "minPost" ? 0 : 1)) return;
 			this.#set(key, v);
 		};
 		return row;
@@ -1477,17 +1472,6 @@ class Styler {
 		return $el("div.dbtags-ac-styler-row", {}, [
 			$el("span.dbtags-ac-styler-label", { textContent: label }), range, num, val,
 		]);
-	}
-
-	#syncModeRows() {
-		if (!this.minPostRow || !this.maxCountRow) return;
-		const mode = Config.get("mode", "pc");
-		const setEn = (row, on) => {
-			row.style.opacity = on ? "" : "0.35";
-			for (const i of row.querySelectorAll("input")) i.disabled = !on;
-		};
-		setEn(this.minPostRow, mode === "pc");
-		setEn(this.maxCountRow, mode === "count");
 	}
 
 	#refreshPreviewPanel() {
@@ -1574,15 +1558,12 @@ class Styler {
 		);
 
 		const gMode = this.#group("候选与数据");
-		this.minPostRow = this.#numRow("最低post数", "minPost", 500);
-		this.maxCountRow = this.#numRow("最多候选数", "maxCount", 30);
 		gMode.append(
-			this.#comboRow("候选模式", "mode", [["pc", "post_count 优先（过滤低热度）"], ["count", "数量优先（最多 N 个）"], ["all", "全部显示（可能卡顿）"]], "pc"),
-			this.minPostRow,
-			this.maxCountRow,
+			this.#comboRow("显示范围", "mode", [["limit", "限量（热度过滤 + 数量上限）"], ["all", "全部显示（可能卡顿）"]], "limit"),
+			this.#numRow("最低post数(0=关)", "minPost", 500),
+			this.#numRow("最多候选数", "maxCount", 50),
 			this.#boolRow("调试日志", "debug"),
 		);
-		this.#syncModeRows();
 		this.dataHintEl = $el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() });
 		gMode.append(this.dataHintEl);
 		onIndexReady(() => {
