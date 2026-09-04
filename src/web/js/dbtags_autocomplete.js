@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp44";
+	url.search = "?v=cp45";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
