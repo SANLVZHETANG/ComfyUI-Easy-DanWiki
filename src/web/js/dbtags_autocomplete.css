@@ -104,19 +104,6 @@
 	overscroll-behavior: contain;
 }
 
-/* lab list in the duo row: always span its column (settings width is for
-   the real popup; a fixed 300px box here would re-open the canyon) */
-.dbtags-ac-styler-duolist .dbtags-ac-list,
-:root.dbtags-width-fixed .dbtags-ac-styler-duolist .dbtags-ac-list {
-	width: 100%;
-	min-width: 0;
-	box-sizing: border-box;
-}
-
-.dbtags-ac-styler-duolist .dbtags-ac-item {
-	min-width: 0;
-}
-
 /* fixed mode: exact width, rows truncate */
 :root.dbtags-width-fixed .dbtags-ac-list {
 	width: var(--dbtags-ac-width);
@@ -669,11 +656,14 @@
 	gap: 10px;
 }
 
-/* PN1: candidate list on the left, wiki example panel beside it */
+/* PN1: list and panel shrink-wrap together: panel floats right at the
+   list edge, exactly like the real popup; list width follows settings */
 .dbtags-ac-styler-duo {
 	display: flex;
 	align-items: stretch;
-	gap: 10px;
+	gap: 0;
+	width: fit-content;
+	max-width: 100%;
 	min-width: 0;
 }
 
@@ -688,11 +678,11 @@
 }
 
 .dbtags-ac-styler-duolist {
-	flex: 1 1 0;
-	min-width: 280px;
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	min-width: 0;
 }
 
 .dbtags-ac-styler-duolist .dbtags-ac-styler-lab-list {
