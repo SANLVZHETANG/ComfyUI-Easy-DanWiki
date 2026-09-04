@@ -113,6 +113,13 @@ const CUSTOM_INLINE_VARS = [
 	"--dbtags-ac-fuzzy", "--dbtags-ac-fuzzy-bg",
 ];
 
+function isLightHex(hex) {
+	const rgb = hexRgb(hex);
+	if (!rgb) return false;
+	const [r, g, b] = rgb.split(",").map((x) => parseInt(x, 10));
+	return 0.299 * r + 0.587 * g + 0.114 * b > 150;
+}
+
 function hexRgb(hex) {
 	const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
 	if (!m) return null;
@@ -175,6 +182,9 @@ function applyConfig() {
 	root.style.setProperty("--dbtags-ac-font", f + "px");
 	root.style.setProperty("--dbtags-ac-alpha", String(op / 100));
 	root.style.setProperty("--dbtags-ac-row-height", Config.getNum("rowH", 26) + "px");
+	root.classList.toggle("dbtags-ac-onlight", isLightHex(
+		getComputedStyle(root).getPropertyValue("--dbtags-ac-bg"),
+	));
 	syncPerfFromConfig();
 	const fam = Config.get("fontFamily", "").replace(/"/g, "");
 	root.style.setProperty("--dbtags-ac-family", fam ? `"${fam}", sans-serif` : "sans-serif");
