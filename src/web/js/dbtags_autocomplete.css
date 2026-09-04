@@ -647,7 +647,6 @@
 	flex-direction: column;
 	align-items: stretch;
 	gap: 10px;
-	overflow: hidden;
 }
 
 .dbtags-ac-preview-wrap {

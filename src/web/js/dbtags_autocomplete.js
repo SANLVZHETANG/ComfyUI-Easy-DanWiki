@@ -1630,11 +1630,31 @@ class Styler {
 	/* every control write funnels through here: store -> re-apply -> live everywhere */
 	#set(key, value) {
 		Config.set(key, String(value));
-		applyConfig();
-		for (const ac of AC_INSTANCES) ac.refreshPrefs();
-		this.#syncPreviewPanel();
-		this.#refreshPreviewPanel();
-		this.#labRefresh();
+		// preview panel syncs first and every stage is guarded: one throwing
+		// consumer can no longer leave the wiki panel stuck hidden
+		try {
+			this.#syncPreviewPanel();
+			this.#refreshPreviewPanel();
+		} catch (e) {
+			console.error("[dbtags] preview sync failed:", e);
+		}
+		try {
+			applyConfig();
+		} catch (e) {
+			console.error("[dbtags] applyConfig failed:", e);
+		}
+		for (const ac of AC_INSTANCES) {
+			try {
+				ac.refreshPrefs();
+			} catch (e) {
+				console.error("[dbtags] refreshPrefs failed:", e);
+			}
+		}
+		try {
+			this.#labRefresh();
+		} catch (e) {
+			console.error("[dbtags] lab refresh failed:", e);
+		}
 	}
 
 	#comboRow(label, key, options, dflt) {
