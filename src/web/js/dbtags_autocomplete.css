@@ -656,6 +656,26 @@
 	gap: 10px;
 }
 
+.dbtags-ac-styler-duo {
+	display: flex;
+	align-items: stretch;
+	gap: 10px;
+	min-width: 0;
+}
+
+.dbtags-ac-styler-duo > * {
+	flex-shrink: 0;
+}
+
+.dbtags-ac-styler-duo .dbtags-ac-preview-wrap {
+	flex: 0 0 auto;
+}
+
+.dbtags-ac-styler-duo .dbtags-ac-group {
+	flex: 1;
+	min-width: 0;
+}
+
 .dbtags-ac-preview-wrap {
 	position: relative;
 	width: 100%;

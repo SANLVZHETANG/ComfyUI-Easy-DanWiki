@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp30";
+	url.search = "?v=cp31";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -2067,7 +2067,8 @@ class Styler {
 			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（下方/右侧面板设置即时生效）" }),
 			this.demoInput,
 		]);
-		this.prev.append(demo, this.panelWrap, this.gPanel, lab);
+		const duo = $el("div.dbtags-ac-styler-duo", {}, [this.panelWrap, this.gPanel]);
+		this.prev.append(demo, duo, lab);
 		this.#syncPreviewPanel();
 		this.#refreshPreviewPanel();
 		onIndexReady(() => {
