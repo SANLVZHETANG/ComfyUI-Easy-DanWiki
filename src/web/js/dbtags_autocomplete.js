@@ -825,6 +825,8 @@ class DBTagsAutoComplete {
 			p.img.onerror = () => { p.img.style.display = "none"; };
 			p.img.src = base + size;
 		};
+		p.img.onmouseenter = () => this.#imgHoverIn(tag, p.img);
+		p.img.onmouseleave = () => this.#imgHoverOut();
 		p.img.onclick = () => this.#openImageCard(tag, p.img);
 		setSrc(mode === "small" ? "small" : "large");
 	}
@@ -1037,6 +1039,27 @@ class DBTagsAutoComplete {
 		if (this._previewEl) this._previewEl.style.display = "none";
 	}
 
+	#imgHoverIn(tag, img) {
+		clearTimeout(this._imgCloseTimer);
+		this._imgCloseTimer = null;
+		if (this._imgHoverTimer) return;
+		this._imgHoverTimer = setTimeout(() => {
+			this._imgHoverTimer = null;
+			this.#openImageCard(tag, img);
+		}, 180);
+	}
+
+	#imgHoverOut() {
+		clearTimeout(this._imgHoverTimer);
+		this._imgHoverTimer = null;
+		if (this._imgCard && !this._imgCloseTimer) {
+			this._imgCloseTimer = setTimeout(() => {
+				this._imgCloseTimer = null;
+				this.#closeImageCard();
+			}, 260);
+		}
+	}
+
 	#openImageCard(tag, anchor) {
 		this.#closeImageCard();
 		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&size=large`;
@@ -1049,6 +1072,11 @@ class DBTagsAutoComplete {
 			]),
 			img,
 		]);
+		card.onmouseenter = () => {
+			clearTimeout(this._imgCloseTimer);
+			this._imgCloseTimer = null;
+		};
+		card.onmouseleave = () => this.#imgHoverOut();
 		document.body.append(card);
 		this._imgCard = card;
 		this.#placeImageCard(card, anchor);
@@ -1073,6 +1101,10 @@ class DBTagsAutoComplete {
 	}
 
 	#closeImageCard() {
+		clearTimeout(this._imgHoverTimer);
+		clearTimeout(this._imgCloseTimer);
+		this._imgHoverTimer = null;
+		this._imgCloseTimer = null;
 		this._imgCard?.remove();
 		this._imgCard = null;
 		if (this._cardKey) {
@@ -1585,7 +1617,7 @@ class Styler {
 			this.#boolRow("示例图", "showImage"),
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#boolRow("图片优先", "panelImg", "false"),
-			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图（点击查看大图卡）"]], "large"),
+			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图（悬浮看大图卡）"]], "large"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("括号键导航", "bracketNav"),
 		);
