@@ -669,9 +669,10 @@
 
 .dbtags-ac-styler-duo .dbtags-ac-preview-wrap {
 	flex: 0 0 auto;
+	width: auto;
 }
 
-.dbtags-ac-styler-duo .dbtags-ac-group {
+.dbtags-ac-styler-duo .dbtags-ac-styler-group {
 	flex: 1;
 	min-width: 0;
 }
