@@ -104,6 +104,19 @@
 	overscroll-behavior: contain;
 }
 
+/* lab list in the duo row: always span its column (settings width is for
+   the real popup; a fixed 300px box here would re-open the canyon) */
+.dbtags-ac-styler-duolist .dbtags-ac-list,
+:root.dbtags-width-fixed .dbtags-ac-styler-duolist .dbtags-ac-list {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.dbtags-ac-styler-duolist .dbtags-ac-item {
+	min-width: 0;
+}
+
 /* fixed mode: exact width, rows truncate */
 :root.dbtags-width-fixed .dbtags-ac-list {
 	width: var(--dbtags-ac-width);
