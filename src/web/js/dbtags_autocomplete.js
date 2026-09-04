@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp35";
+	url.search = "?v=cp36";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -1750,7 +1750,7 @@ class Styler {
 
 	#refreshPreviewPanel() {
 		if (!index) return;
-		const tag = getTagMap().get(normName("1girl")) || index.tags[0];
+		const tag = this._labTag || getTagMap().get(normName("1girl")) || index.tags[0];
 		if (!tag) return;
 		this.pTitle.textContent = `${tag.name}  ${fmtCount(tag.post_count)}`;
 		this.pSummary.replaceChildren(
@@ -2043,6 +2043,17 @@ class Styler {
 		});
 		this.labInput.value = "cat girl";
 		this.labInput.oninput = () => this.#labRefresh();
+		this.labInput.onkeydown = (e) => {
+			if (!this._labItems?.length) return;
+			const n = this._labItems.length;
+			let sel = this._labSel || 0;
+			if (e.key === "ArrowDown") sel = Math.min(n - 1, sel + 1);
+			else if (e.key === "ArrowUp") sel = Math.max(0, sel - 1);
+			else return;
+			e.preventDefault();
+			this._labSel = sel;
+			this.#labSyncSel();
+		};
 		this.labList = mk("dbtags-ac-list.dbtags-ac-styler-lab-list");
 		this.labStats = $el("div.dbtags-ac-styler-lab-stats");
 		const labHead = $el("div.dbtags-ac-styler-lab", {}, [
@@ -2085,7 +2096,10 @@ class Styler {
 		const term = this.labInput.value.replace(/\[|\]/g, "").trim();
 		if (!term) {
 			this.labList.replaceChildren();
+			this._labItems = [];
+			this._labTag = null;
 			this.labStats.textContent = "输入以测试";
+			this.#refreshPreviewPanel();
 			return;
 		}
 		if (!index) {
@@ -2098,9 +2112,15 @@ class Styler {
 		const _lt0 = performance.now();
 		const { list, total, dropped, minPc } = runQuery(term, word);
 		const _ltMs = pr1(performance.now() - _lt0);
+		this._labItems = list;
+		if ((this._labSel || 0) >= list.length) this._labSel = 0;
 		const rows = list.map((item, i) => {
 			const row = buildItemRow(item, word);
-			if (i === 0) row.classList.add("dbtags-ac-item--selected");
+			if (i === (this._labSel || 0)) row.classList.add("dbtags-ac-item--selected");
+			row.onmousedown = () => {
+				this._labSel = i;
+				this.#labSyncSel();
+			};
 			return row;
 		});
 		if (total > list.length) {
@@ -2116,6 +2136,21 @@ class Styler {
 			(dropped > 0 ? ` · 被热度过滤 ${dropped}` : "") +
 			(bodyHits ? ` · 其中正文匹配 ${bodyHits}` : "") +
 			(PERF_ON ? ` · 耗时 ${_ltMs}ms` : "");
+		this.#labSyncSel();
+	}
+
+	/* cursor state of the lab list: drives the wiki preview panel beside it */
+	#labSyncSel() {
+		const sel = this._labSel || 0;
+		const rows = this.labList ? this.labList.children : null;
+		if (rows) {
+			for (let i = 0; i < rows.length; i++) {
+				if (rows[i].classList) rows[i].classList.toggle("dbtags-ac-item--selected", i === sel);
+			}
+		}
+		const item = this._labItems ? this._labItems[sel] : null;
+		this._labTag = (item && item.tag) || null;
+		this.#refreshPreviewPanel();
 	}
 
 	#fpsMonitorStart() {
