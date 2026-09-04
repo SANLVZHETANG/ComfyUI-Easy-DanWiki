@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp45";
+	url.search = "?v=cp46";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -891,6 +891,9 @@ class DBTagsAutoComplete {
 
 	/* pull all panel prefs from storage and apply live (settings onChange path) */
 	refreshPrefs() {
+		const lang = Config.get("lang", "zh");
+		const langChanged = this._lastLang !== lang;
+		this._lastLang = lang;
 		this.showSummary = Config.get("showSummary", "true") !== "false";
 		this.showImage = Config.get("showImage", "true") !== "false";
 		this.showLinks = Config.get("showLinks", "true") !== "false";
@@ -900,6 +903,10 @@ class DBTagsAutoComplete {
 		this.#syncPanelMode();
 		if (this.selected) this.#renderPanel(this.mainPanel, this.selected.tag);
 		if (this.showWiki && this.#visible()) this.#place();
+		// language switch swaps the wiki text under the same query term: rebuild
+		// the open list + panel or stale zh snippets/zh column remain (wrong
+		// highlight positions) and the panel cannot find the old-language term
+		if (langChanged && this.#visible() && this.#token()) this.#update();
 	}
 
 	/* image-priority (old fixed quotas) vs text-priority (flex) panel layout */
@@ -1782,9 +1789,19 @@ class Styler {
 		const tag = this._labTag || getTagMap().get(normName("1girl")) || index.tags[0];
 		if (!tag) return;
 		this.pTitle.textContent = `${tag.name}  ${fmtCount(tag.post_count)}`;
-		this.pSummary.replaceChildren(
-			document.createTextNode(wikiText(tag).replace(/\[\[|\]\]/g, ""))
-		);
+		const text = wikiText(tag).replace(/\[\[|\]\]/g, "");
+		const term = (this.labInput?.value || "").replace(/\[|\]|\s+/g, " ").trim().toLowerCase();
+		const lower = text.toLowerCase();
+		const hit = term.length >= 2 ? lower.indexOf(term) : -1;
+		if (hit >= 0) {
+			this.pSummary.replaceChildren(
+				document.createTextNode(text.slice(0, hit)),
+				$el("span.dbtags-ac-snippet-hit", { textContent: text.slice(hit, hit + term.length) }),
+				document.createTextNode(text.slice(hit + term.length)),
+			);
+		} else {
+			this.pSummary.replaceChildren(document.createTextNode(text));
+		}
 		const pills = [];
 		for (const l of (tag.links || []).slice(0, 4)) {
 			const t = getTagMap().get(normName(l.n));
