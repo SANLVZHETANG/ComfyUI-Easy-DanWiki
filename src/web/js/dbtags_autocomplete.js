@@ -8,9 +8,10 @@ import { $el } from "../../../scripts/ui.js";
 */
 
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
+const VERSION = "cp48";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp46";
+	url.search = "?v=" + VERSION;
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -1045,7 +1046,7 @@ class DBTagsAutoComplete {
 			return;
 		}
 		const mode = Config.get("imgMode", "large");
-		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&size=`;
+		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=`;
 		const setSrc = (size) => {
 			p.img.onload = () => { p.img.style.display = ""; };
 			p.img.onerror = () => { p.img.style.display = "none"; };
@@ -1288,7 +1289,7 @@ class DBTagsAutoComplete {
 
 	#openImageCard(tag, anchor) {
 		this.#closeImageCard();
-		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&size=large`;
+		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=large`;
 		const img = $el("img.dbtags-ac-imgcard-img", { src: url });
 		img.onerror = () => this.#closeImageCard();
 		const card = $el("div.dbtags-ac-imgcard", {}, [

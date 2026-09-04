@@ -129,11 +129,15 @@ async def get_status(request):
     })
 
 
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
 @PromptServer.instance.routes.get("/dbtags/image")
 async def get_image(request):
     tag = request.query.get("tag", "").strip()
     if not tag:
-        return web.Response(status=400, text="missing tag")
+        return web.Response(status=400, text="missing tag",
+                            headers=_NO_STORE)
     manifest = _load_manifest()
     entry = manifest.get(tag)
     path = None
@@ -155,16 +159,20 @@ async def get_image(request):
                 path = other
     if not path:
         _log("image 404: tag=%s" % tag)
-        return web.Response(status=404, text="no image for tag")
+        return web.Response(status=404, text="no image for tag",
+                            headers=_NO_STORE)
     full = os.path.abspath(os.path.join(BASE, path))
     if not full.startswith(os.path.abspath(BASE) + os.sep):
         _log("path escape blocked: tag=%s path=%s" % (tag, path))
         return web.Response(status=403, text="blocked")
     if not os.path.isfile(full):
         _log("image 404: tag=%s file missing=%s" % (tag, path))
-        return web.Response(status=404, text="file missing")
+        return web.Response(status=404, text="file missing",
+                            headers=_NO_STORE)
     _log("image 200: tag=%s size=%s %s" % (tag, size, path))
-    return web.FileResponse(full)
+    resp = web.FileResponse(full)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 def _list_fonts():
