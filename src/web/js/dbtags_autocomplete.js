@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=cp39";
+	url.search = "?v=cp40";
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 }
 
@@ -1780,30 +1780,57 @@ class Styler {
 		}
 		const custom = this.swatchEls.find((s) => s.dataset.v === "custom");
 		if (custom) {
-			const c = getCustomColors();
-			custom.style.background = `linear-gradient(135deg, ${c.bg} 45%, ${c.highlight} 45%)`;
+			const cs = getComputedStyle(document.documentElement);
+			const g = (n) => cs.getPropertyValue(n).trim();
+			const card = custom.querySelector(".dbtags-ac-sw-card");
+			card.style.background = g("--dbtags-ac-bg2");
+			card.style.borderColor = g("--dbtags-ac-border");
+			const rows = custom.querySelectorAll(".dbtags-ac-sw-row");
+			rows[0].style.background = g("--dbtags-ac-selected");
+			const bars0 = rows[0].querySelectorAll("i");
+			bars0[0].style.background = g("--dbtags-ac-text");
+			bars0[1].style.background = g("--dbtags-ac-count");
+			rows[1].querySelectorAll("i")[0].style.background = g("--dbtags-ac-sub");
+			rows[2].querySelectorAll("i")[0].style.background = g("--dbtags-ac-sub");
 		}
 		this.#syncPickers();
 	}
 
 	#buildControls() {
 		const gTheme = this.#group("主题");
-		const swRow = $el("div.dbtags-ac-styler-row");
-		for (const [v, t, bg, ac] of [
-			["dark", "黑灰", "#33383f", "#4da3ff"],
-			["light", "米白", "#f1eee9", "#1e6fd9"],
-			["pink", "喵粉", "#f8e7ee", "#ec62a1"],
-			["custom", "自定义", "", ""],
-		]) {
+		const swRow = $el("div.dbtags-ac-styler-swatches");
+		const SWATCH_COLORS = {
+			dark:  { bg:"#33383f", border:"#7a8394", sel:"rgba(77,163,255,0.16)", text:"#e6e6e6", sub:"#b5bac2", count:"#a8c6a8" },
+			light: { bg:"#f7f5f1", border:"#bdb6a8", sel:"rgba(30,111,217,0.12)", text:"#3b3b3b", sub:"#6f6f6f", count:"#4d7a4d" },
+			pink:  { bg:"#fdf0f5", border:"#e38fba", sel:"rgba(236,98,161,0.18)", text:"#53263e", sub:"#8b4e6d", count:"#c34e81" },
+		};
+		const bar = (w, color) => {
+			const b = $el("i.dbtags-ac-sw-bar");
+			b.style.width = w;
+			b.style.background = color;
+			return b;
+		};
+		for (const [v, t] of [["dark", "黑灰"], ["light", "米白"], ["pink", "喵粉"], ["custom", "自定义"]]) {
 			const sw = $el("button.dbtags-ac-sw", {
-				textContent: t,
 				onclick: () => {
 					this.#set("theme", v);
 					this.#refreshSwatches();
 				},
 			});
 			sw.dataset.v = v;
-			if (v !== "custom") sw.style.background = `linear-gradient(135deg, ${bg} 45%, ${ac} 45%)`;
+			const c = SWATCH_COLORS[v] || { bg: "#dddddd", border: "#999999", sel: "rgba(127,127,127,0.15)", text: "#555555", sub: "#888888", count: "#888888" };
+			const card = $el("span.dbtags-ac-sw-card");
+			card.style.background = c.bg;
+			card.style.borderColor = c.border;
+			const selRow = $el("span.dbtags-ac-sw-row.dbtags-ac-sw-sel");
+			selRow.style.background = c.sel;
+			selRow.append(bar("44%", c.text), bar("14%", c.count));
+			const row2 = $el("span.dbtags-ac-sw-row");
+			row2.append(bar("62%", c.sub));
+			const row3 = $el("span.dbtags-ac-sw-row");
+			row3.append(bar("48%", c.sub));
+			card.append(selRow, row2, row3);
+			sw.append(card, $el("span.dbtags-ac-sw-name", { textContent: t }));
 			this.swatchEls.push(sw);
 			swRow.append(sw);
 		}
