@@ -2,7 +2,7 @@
 """
 Deploy hub src -> the ComfyUI plugin dir (E:).
 
-Copies __init__.py, dbtags_server.py and web/js/*.{js,css} from src/ into
+Copies __init__.py, dbtags_server.py and web/js/*.{js,css} from the repo root into
 the deployed extension. Data files (web/js/data/*.json) are produced
 directly into the plugin dir by build_index.py and are NOT touched here.
 
@@ -16,7 +16,7 @@ import shutil
 import sys
 
 HUB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(HUB, "src")
+SRC = HUB
 DST = r"E:\ComfyUI\custom_nodes\ComfyUI-Easy-DanWiki"
 
 FILES = [

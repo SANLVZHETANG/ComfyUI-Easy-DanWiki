@@ -34,7 +34,7 @@ import shutil
 import sys
 
 HUB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(HUB, "src")
+SRC = HUB
 DATA = os.path.join(HUB, "..", "danbooru-general-tags")
 DATA = os.path.abspath(DATA)
 REL = os.path.join(HUB, "release")
