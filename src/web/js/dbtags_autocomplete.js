@@ -8,7 +8,7 @@ import { $el } from "../../../scripts/ui.js";
 */
 
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
-const VERSION = "cp48";
+const VERSION = "cp52";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -17,9 +17,12 @@ const VERSION = "cp48";
 
 const ID = "dbtags.autocomplete";
 const SKIP_WIDGETS = new Set(["ttN xyPlot.x_values", "ttN xyPlot.y_values"]);
-const INDEX_URL = new URL("./data/tags_index.json", import.meta.url).href;
+// cache-busting: rebuilds of tags_index.json REQUIRE bumping VERSION above
+// (the index URL rides on it), see README 构建/部署命令
+const INDEX_URL = new URL("./data/tags_index.json", import.meta.url).href + "?v=" + VERSION;
 const PYSSSSS_AUTO = "/extensions/comfyui-custom-scripts/js/common/autocomplete.js";
 const SEPARATOR = ", ";
+const BODY_IDLE_MS = 300; // typing pause before the (expensive) wiki-body scan runs
 const DEBUG = new URLSearchParams(location.search).has("dbtags_debug") ||
 		localStorage.getItem(ID + ".debug") === "true";
 
@@ -30,34 +33,29 @@ function onIndexReady(cb) {
 	else _indexReadyCbs.push(cb);
 }
 
-/* ---- local font files served from the plugin fonts/ dir ---- */
-const _fontFams = [];
+/* ---- local font files served from the plugin fonts/ dir ----
+   listing is cheap; loading is lazy (a bundled CJK font is ~17MB, and the
+   default config uses none of them) */
+const _fontNames = [];
+const _loadedFams = new Set();
 const _fontsReadyCbs = [];
 function onFontsReady(cb) {
-	if (_fontFams.length) cb();
+	if (_fontsListed) cb();
 	else _fontsReadyCbs.push(cb);
 }
-async function loadFonts() {
-	let names = [];
+let _fontsListed = false;
+async function listFonts() {
+	if (_fontsListed) return;
+	_fontsListed = true;
 	try {
 		const resp = await fetch("/dbtags/fonts");
-		if (!resp.ok) return;
-		names = await resp.json();
-	} catch {
-		return;
-	}
-	for (const n of names) {
-		const fam = n.replace(/\.[a-z0-9]+$/i, "");
-		try {
-			const ff = new FontFace(fam, `url("/dbtags/font?name=${encodeURIComponent(n)}")`);
-			await ff.load();
-			document.fonts.add(ff);
-			_fontFams.push(fam);
-		} catch {
-			void 0;
+		if (resp.ok) {
+			for (const n of await resp.json()) _fontNames.push(n);
 		}
+	} catch {
+		void 0;
 	}
-	dlog("C", `fonts loaded: ${_fontFams.join(", ") || "none"}`);
+	dlog("C", `font list: ${_fontNames.join(", ") || "none"}`);
 	for (const cb of _fontsReadyCbs.splice(0)) {
 		try {
 			cb();
@@ -65,6 +63,28 @@ async function loadFonts() {
 			void 0;
 		}
 	}
+}
+async function ensureFont(fam) {
+	if (!fam || _loadedFams.has(fam)) return _loadedFams.has(fam);
+	await listFonts();
+	const name = _fontNames.find((n) => n.replace(/\.[a-z0-9]+$/i, "") === fam);
+	if (!name) return false;
+	try {
+		const ff = new FontFace(fam, `url("/dbtags/font?name=${encodeURIComponent(name)}")`);
+		await ff.load();
+		document.fonts.add(ff);
+		_loadedFams.add(fam);
+		dlog("C", `font loaded: ${fam}`);
+	} catch (e) {
+		dlog("C", `font load failed: ${fam}`, e);
+	}
+	return _loadedFams.has(fam);
+}
+async function loadFonts() {
+	await listFonts();
+	// preload ONLY the selected family; others load when picked in the styler
+	const sel = Config.get("fontFamily", "").replace(/"/g, "");
+	if (sel) await ensureFont(sel);
 }
 let TAG_MAP = null;
 
@@ -146,7 +166,7 @@ function saveCustomColors(c) {
 	getCustomColors.cache = { ...CUSTOM_DEFAULT, ...c };
 	Config.set("customVars", JSON.stringify(getCustomColors.cache));
 	applyConfig();
-	for (const ac of AC_INSTANCES) ac.refreshPrefs();
+	refreshAllInstances();
 }
 
 /* user-imported/saved theme presets: [{ id, name, colors:{...} }] */
@@ -169,6 +189,7 @@ function findUserTheme(id) {
 }
 
 function applyConfig() {
+	_langZh = Config.get("lang", "zh") === "zh";
 	const root = document.documentElement;
 	const theme = Config.get("theme", "dark");
 	const isUserTheme = typeof theme === "string" && theme.startsWith("up");
@@ -253,8 +274,12 @@ function listField(value) {
 	return Array.isArray(value) ? value : [];
 }
 
+// cached by applyConfig(): every lang write funnels through #set()/import,
+// which always re-apply config, so the cache can never go stale. hot-path
+// readers (wikiText/buildItemRow) called this 100+ times per rendered list.
+let _langZh = true;
 function langIsZh() {
-	return Config.get("lang", "zh") === "zh";
+	return _langZh;
 }
 
 function aliasTableOn() {
@@ -680,6 +705,32 @@ class CaretHelper {
 /* ---- autocomplete overlay (list + info panel) ---- */
 const AC_INSTANCES = new Set(); // live completions, for settings-driven refresh
 
+/* drop instances whose input left the document (node removed / workflow swap) */
+function reapDetachedInstances() {
+	for (const ac of [...AC_INSTANCES]) {
+		try {
+			if (!ac.el.isConnected) ac.destroy();
+		} catch {
+			void 0;
+		}
+	}
+}
+
+/* refresh every live instance; detached ones get reaped instead */
+function refreshAllInstances() {
+	for (const ac of [...AC_INSTANCES]) {
+		try {
+			if (!ac.el.isConnected) {
+				ac.destroy();
+				continue;
+			}
+			ac.refreshPrefs();
+		} catch (e) {
+			console.error("[dbtags] refreshPrefs failed:", e);
+		}
+	}
+}
+
 /* shared query pipeline (real popup + styler lab use this exact path) */
 function runQuery(term, word) {
 	const t0 = performance.now();
@@ -820,6 +871,12 @@ class DBTagsAutoComplete {
 
 	destroy() {
 		AC_INSTANCES.delete(this);
+		clearTimeout(this._bodyTimer);
+		this._bodyTimer = null;
+		clearTimeout(this._previewTimer);
+		this._previewTimer = null;
+		this._previewEl?.remove();
+		this._previewEl = null;
 		this.el.removeEventListener("keydown", this._hKeydown);
 		this.el.removeEventListener("keyup", this._hKeyup);
 		this.el.removeEventListener("click", this._hClick);
@@ -1238,7 +1295,13 @@ class DBTagsAutoComplete {
 
 	#showPreview(name, event) {
 		this.#hidePreview();
+		// currentTarget is nulled by the browser once dispatch ends: capture the
+		// anchor synchronously or the delayed read throws and the preview never
+		// shows (and bail if the row was re-rendered away before the timer)
+		const anchor = event.currentTarget || event.target;
 		this._previewTimer = setTimeout(() => {
+			this._previewTimer = null;
+			if (!anchor || !anchor.isConnected) return;
 			const tag = getTagMap().get(normName(name));
 			if (!tag) return;
 			if (!this._previewEl) {
@@ -1253,7 +1316,7 @@ class DBTagsAutoComplete {
 						: "(无 wiki 释义)",
 				})
 			);
-			const r = event.currentTarget.getBoundingClientRect();
+			const r = anchor.getBoundingClientRect();
 			this._previewEl.style.left = r.right + 10 + "px";
 			this._previewEl.style.top = r.top + "px";
 			this._previewEl.style.display = "";
@@ -1391,9 +1454,24 @@ class DBTagsAutoComplete {
 	}
 
 	async #update() {
+		// amortized zombie reaping (every 8th popup update, one instance does it
+		// for the whole registry)
+		this._reapTick = (this._reapTick || 0) + 1;
+		if (this._reapTick % 8 === 0) reapDetachedInstances();
 		const token = this.#token();
 		if (!token) {
 			this.#hide();
+			return;
+		}
+		if (!index) {
+			// still loading: queue one retry for when it lands (typing also re-fires)
+			if (!this._idxWaitQueued) {
+				this._idxWaitQueued = true;
+				onIndexReady(() => {
+					this._idxWaitQueued = false;
+					this.#scheduleUpdate(0);
+				});
+			}
 			return;
 		}
 		// legacy '[' brackets are ignored (phrase-exact mode removed); search is plain substring now
@@ -1403,10 +1481,72 @@ class DBTagsAutoComplete {
 		this._highlightTerms = term ? [term] : [];
 		this._querySeq = (this._querySeq || 0) + 1;
 		const seq = this._querySeq;
-		const { list, total, dropped, minPc, isFuzzy } = runQuery(term, word);
+		clearTimeout(this._bodyTimer);
+		this._bodyTimer = null;
+		// phase 1: field scan only — the far more expensive body scan waits
+		// for a typing pause (see #bodyPass)
+		const t0 = performance.now();
+		const results = searchTags(word);
+		if (PERF_ON) {
+			Perf.push({
+				term,
+				ms: pr1(performance.now() - t0),
+				hits: results.length,
+				fuzzy: false,
+				seg: { scan: pr1(_lastSeg?.scan ?? 0), sort: pr1(_lastSeg?.sort ?? 0), fuzzyBody: 0 },
+			});
+		}
+		this._baseResults = results;
+		const fuzzyMode = Config.get("fuzzy", "always");
+		const wantBody = !!term && fuzzyMode !== "off"
+			&& (fuzzyMode === "always" || !results.length);
+		this._bodyPending = wantBody;
+		dlog("D", `search "${term}" -> ${results.length} field hits, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
+		this.#renderResults(results, term, word, seq);
+		if (wantBody) {
+			this._bodyTimer = setTimeout(() => this.#bodyPass(seq, term, word), BODY_IDLE_MS);
+		}
+	}
+
+	/* phase 2: wiki-body scan + the old merge rules (dedup, 30 cap, fallback) */
+	#bodyPass(seq, term, word) {
+		this._bodyTimer = null;
+		this._bodyPending = false;
+		if (seq !== this._querySeq || !index) return; // typing resumed -> discard
+		const t0 = performance.now();
+		const hits = bodySearch(term);
+		let merged = this._baseResults;
+		if (merged.length > 0) {
+			const seen = new Set(merged.map((r) => r.tag.name));
+			merged = merged.slice();
+			for (const h of hits) {
+				if (merged.length >= 30) break;
+				if (seen.has(h.tag.name)) continue;
+				seen.add(h.tag.name);
+				merged.push(h);
+			}
+		} else if (hits.length) {
+			merged = hits;
+		}
+		if (PERF_ON) {
+			const ms = pr1(performance.now() - t0);
+			Perf.push({ term, ms, hits: merged.length, fuzzy: true, seg: { scan: 0, sort: 0, fuzzyBody: ms } });
+		}
+		dlog("D", `body "${term}" -> ${merged.length} merged, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
+		this.#renderResults(merged, term, word, seq);
+	}
+
+	/* shared list renderer for both phases (seq-stale updates are dropped) */
+	#renderResults(results, term, word, seq) {
 		if (seq !== this._querySeq) return; // stale result, drop it
+		const { list, total, dropped, minPc } = applyLimit(results);
 		if (!list.length) {
 			if (!total) {
+				if (this._bodyPending) {
+					// keep the box open with a hint; phase 2 replaces or hides it
+					this.#showEmpty("无匹配 — 正在检索 wiki 正文…");
+					return;
+				}
 				// mid-phrase typing (has a space): keep the panel open with a hint
 				if (term.includes(" ") && Config.get("fuzzy", "always") !== "off") {
 					this.#showEmpty(`无匹配 — 正文需输入完整短语（${term}）`);
@@ -1415,7 +1555,9 @@ class DBTagsAutoComplete {
 				this.#hide();
 				return;
 			}
-			this.#showEmpty(`低于最低热度，换关键词或调低阈值（设置中心可调）`);
+			this.#showEmpty(this._bodyPending
+				? "低于最低热度 — 正在检索 wiki 正文…"
+				: "低于最低热度，换关键词或调低阈值（设置中心可调）");
 			return;
 		}
 		this.current = list;
@@ -1443,8 +1585,9 @@ class DBTagsAutoComplete {
 		}
 		this.wrap.style.display = "";
 		this.#place();
-		const prev = this.selected;
-		this.#setSelected(items.indexOf(prev?.el) >= 0 ? prev : this.current[0]);
+		// keep the user's current selection across the phase-2 rebuild
+		const keep = this.selected && this.current.find((it) => it.tag.name === this.selected.tag.name);
+		this.#setSelected(keep || this.current[0]);
 	}
 
 	#showEmpty(msg) {
@@ -1500,6 +1643,9 @@ class DBTagsAutoComplete {
 	}
 
 	#hide() {
+		clearTimeout(this._bodyTimer);
+		this._bodyTimer = null;
+		this._bodyPending = false;
 		this.#closeImageCard();
 		this.selected = null;
 		this.current = [];
@@ -1544,14 +1690,26 @@ function installGuard() {
 		},
 		true
 	);
-	setInterval(() => {
-		document.querySelectorAll(".pysssss-autocomplete").forEach((dd) => dd.remove());
-	}, 300);
+	// sweep whatever is already there, then remove future dropdowns as they
+	// are inserted: only newly-added nodes are inspected, so the callback is
+	// O(added) per mutation batch instead of a full-DOM query every 300ms
+	document.querySelectorAll(".pysssss-autocomplete").forEach((dd) => dd.remove());
+	new MutationObserver((muts) => {
+		for (const m of muts) {
+			for (const n of m.addedNodes) {
+				if (n.nodeType !== 1) continue;
+				if (n.classList?.contains("pysssss-autocomplete")) n.remove();
+				else n.querySelector?.(".pysssss-autocomplete")?.remove();
+			}
+		}
+	}).observe(document.body, { childList: true, subtree: true });
 }
 
 async function loadIndex() {
 	const t0 = performance.now();
-	const resp = await fetch(INDEX_URL, { cache: "no-store" });
+	// cache:"default" + ?v=VERSION -> repeat loads hit the HTTP cache instead
+	// of re-transferring ~25MB; a VERSION bump is the invalidation switch
+	const resp = await fetch(INDEX_URL);
 	if (resp.status !== 200) {
 		console.error(`[dbtags] index fetch failed: ${resp.status} ${resp.statusText}`);
 		return false;
@@ -1600,7 +1758,7 @@ const SETTING_DEFS = {
 };
 
 const THEME_DESC = {
-	scope: "Danbooru 补全浮窗（custom 主题）",
+	scope: "ComfyUI-Easy-DanWiki 补全浮窗（custom 主题）",
 	colors: {
 		bg: "候选列表背景色（避免纯黑纯白，会叠毛玻璃透明度）",
 		bg2: "wiki 面板背景色（建议与 bg 差一档明度做层次）",
@@ -1638,7 +1796,7 @@ class Styler {
 		this.swatchEls = [];
 		this.colorInputs = {};
 		this.el = $el("div.dbtags-ac-styler");
-		const head = $el("div.dbtags-ac-styler-head", { textContent: "外观定制器" });
+		const head = $el("div.dbtags-ac-styler-head", { textContent: "ComfyUI-Easy-DanWiki 外观定制器" });
 		head.append($el("button.dbtags-ac-close", {
 			textContent: "×",
 			title: "关闭",
@@ -1681,13 +1839,7 @@ class Styler {
 		} catch (e) {
 			console.error("[dbtags] applyConfig failed:", e);
 		}
-		for (const ac of AC_INSTANCES) {
-			try {
-				ac.refreshPrefs();
-			} catch (e) {
-				console.error("[dbtags] refreshPrefs failed:", e);
-			}
-		}
+		refreshAllInstances();
 		try {
 			this.#labRefresh();
 		} catch (e) {
@@ -1767,19 +1919,36 @@ class Styler {
 
 	#fontRow() {
 		const sel = $el("select");
+		const fams = () => _fontNames.map((n) => n.replace(/\.[a-z0-9]+$/i, ""));
 		const fill = () => {
-			const cur = Config.get("fontFamily", "");
+			const cur = Config.get("fontFamily", "").replace(/"/g, "");
 			sel.replaceChildren(
 				$el("option", { value: "", textContent: "默认（sans-serif）" }),
-				..._fontFams.map((f) => $el("option", { value: f, textContent: f })),
+				...fams().map((f) => $el("option", { value: f, textContent: _loadedFams.has(f) ? f : `${f}（未加载）` })),
 			);
-			sel.value = _fontFams.includes(cur) ? cur : "";
+			sel.value = !cur || fams().includes(cur) ? cur : "";
 		};
 		fill();
 		onFontsReady(() => {
 			if (sel.isConnected) fill();
 		});
-		sel.onchange = () => this.#set("fontFamily", sel.value);
+		sel.onchange = async () => {
+			const fam = sel.value;
+			if (fam && !_loadedFams.has(fam)) {
+				const opt = sel.options[sel.selectedIndex];
+				const orig = opt.textContent;
+				sel.disabled = true;
+				opt.textContent = "载入中…";
+				try {
+					await ensureFont(fam);
+				} finally {
+					sel.disabled = false;
+					opt.textContent = orig;
+				}
+			}
+			fill();
+			this.#set("fontFamily", fam);
+		};
 		return $el("div.dbtags-ac-styler-row", {}, [
 			$el("span.dbtags-ac-styler-label", { textContent: "界面字体" }), sel,
 		]);
@@ -2061,13 +2230,13 @@ class Styler {
 		gDanger.append($el("button.dbtags-ac-styler-reset", {
 			textContent: "全部设置恢复默认（含自定义配色）",
 			onclick: () => {
-				if (!confirm("清空全部 Danbooru 补全设置并恢复默认？不影响索引/翻译数据。")) return;
+				if (!confirm("清空全部 ComfyUI-Easy-DanWiki 设置并恢复默认？不影响索引/翻译数据。")) return;
 				for (const k of Object.keys(localStorage)) {
 					if (k.startsWith(ID + ".")) localStorage.removeItem(k);
 				}
 				getCustomColors.cache = null;
 				applyConfig();
-				for (const ac of AC_INSTANCES) ac.refreshPrefs();
+				refreshAllInstances();
 				this.close();
 				openStyler();
 			},
@@ -2230,7 +2399,7 @@ class Styler {
 		getCustomColors.cache = null;
 		_stylerMsg = `已应用 ${n} 项配置` + (unknown.length ? `，忽略未知键：${unknown.join(", ")}` : "");
 		applyConfig();
-		for (const ac of AC_INSTANCES) ac.refreshPrefs();
+		refreshAllInstances();
 		this.close();
 		openStyler();
 	}
@@ -2532,30 +2701,50 @@ app.registerExtension({
 				if (SKIP_WIDGETS.has(id)) return r;
 				const inputEl = r.widget.inputEl ?? r.widget.element;
 				if (inputEl) {
-					new DBTagsAutoComplete(inputEl, r.widget);
+					// widget rebuilt (resize/undo/copy): replace, never stack a
+					// second instance on the same input
+					r.widget._dbtagsAC?.destroy();
+					r.widget._dbtagsAC = new DBTagsAutoComplete(inputEl, r.widget);
 				}
 			}
 			return r;
 		};
 
-		// P17: single entry point — every setting lives in the styler window
-		// (storage keys unchanged, existing values keep working)
+		// Single entry point — every setting lives in the styler window
+		// (storage keys unchanged, existing values keep working).
+		// `type` as a renderer function is supported by the frontend FormItem
+		// (custom setting renderer): we draw a real push button in the panel.
 		app.ui.settings.addSetting({
 			id: ID + ".openStyler",
-			name: "Danbooru 补全 - 外观定制器（勾选即打开，弹回原状）",
-			type: "boolean",
-			defaultValue: false,
-			onChange: (value) => {
-				if (!value) return;
-				openStyler();
-				try { app.ui.settings.setSettingValue?.(ID + ".openStyler", false); } catch { void 0; }
+			category: ["ComfyUI-Easy-DanWiki", "外观定制器"],
+			name: "打开外观定制器（主题/匹配/面板全部设置都在窗内）",
+			type: () => {
+				const btn = $el("button.dbtags-settings-btn", {
+					type: "button",
+					textContent: "打开",
+					onclick: () => openStyler(),
+				});
+				// inline styles: the renderer element may land in a shadow DOM
+				// where our stylesheet does not reach; hover via JS for the same reason
+				const s = btn.style;
+				s.padding = "0.3rem 1.2rem";
+				s.borderRadius = "6px";
+				s.border = "none";
+				s.cursor = "pointer";
+				s.fontSize = "0.875rem";
+				s.background = "var(--p-primary-color, #00857e)";
+				s.color = "var(--p-primary-contrast-color, #fff)";
+				btn.addEventListener("mouseenter", () => { s.filter = "brightness(1.15)"; });
+				btn.addEventListener("mouseleave", () => { s.filter = ""; });
+				return btn;
 			},
+			defaultValue: false,
 		});
 
 		try {
 			app.command?.add?.("DbTagsAutocomplete.OpenStyler", {
-				name: "Danbooru 补全：打开外观定制器",
-				description: "打开 danbooru 补全的外观与行为设置窗口",
+				name: "ComfyUI-Easy-DanWiki：打开外观定制器",
+				description: "打开 ComfyUI-Easy-DanWiki 的外观与行为设置窗口",
 				function: () => openStyler(),
 			});
 		} catch {
@@ -2564,8 +2753,8 @@ app.registerExtension({
 		try {
 			app.menu?.addSettingsMenu?.({
 				id: "dbtags.openStyler.menu",
-				title: "Danbooru 补全 - 外观定制器",
-				label: "Danbooru 补全 - 外观定制器",
+				title: "ComfyUI-Easy-DanWiki - 外观定制器",
+				label: "ComfyUI-Easy-DanWiki - 外观定制器",
 				icon: "pi pi-palette",
 				callback: () => openStyler(),
 			});
@@ -2573,10 +2762,13 @@ app.registerExtension({
 			void 0;
 		}
 	},
-	async setup() {
+	setup() {
 		dlog("C", "extension loaded");
-		const ok = await loadIndex();
-		if (!ok) return;
+		// fire-and-forget: a ~25MB fetch + parse must not gate ComfyUI startup;
+		// everything index-dependent is guarded (onIndexReady / #update)
+		void loadIndex();
+		// pysssss suppression is independent of the index (also fixes the old
+		// failure path where a bad index left the other completer active)
 		disablePysssss();
 	},
 });

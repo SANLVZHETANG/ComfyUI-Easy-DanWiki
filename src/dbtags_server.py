@@ -130,6 +130,10 @@ async def get_status(request):
 
 
 _NO_STORE = {"Cache-Control": "no-store"}
+# success payloads are versioned by URL (?tag&size&v= / ?name&mtime) and
+# effectively immutable -> safe to keep in the browser cache for a while
+_CACHE_IMAGE = {"Cache-Control": "public, max-age=86400"}
+_CACHE_FONT = {"Cache-Control": "public, max-age=604800"}
 
 
 @PromptServer.instance.routes.get("/dbtags/image")
@@ -171,7 +175,9 @@ async def get_image(request):
                             headers=_NO_STORE)
     _log("image 200: tag=%s size=%s %s" % (tag, size, path))
     resp = web.FileResponse(full)
-    resp.headers["Cache-Control"] = "no-store"
+    # URL already carries &v=<code version>; FileResponse adds Last-Modified
+    # + ETag, so changed files revalidate automatically once the window lapses
+    resp.headers["Cache-Control"] = _CACHE_IMAGE["Cache-Control"]
     return resp
 
 
@@ -199,6 +205,7 @@ async def get_font(request):
         return web.Response(status=404, text="no such font")
     resp = web.FileResponse(full)
     resp.headers["Content-Type"] = FONT_MIME[os.path.splitext(base)[1].lower()]
+    resp.headers["Cache-Control"] = _CACHE_FONT["Cache-Control"]
     _log("font 200: %s" % base)
     return resp
 
