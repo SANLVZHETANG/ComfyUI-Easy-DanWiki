@@ -1,33 +1,84 @@
-# v0.1-补全 — Danbooru 双语补全插件 大本营
+# ComfyUI-Easy-DanWiki
 
-> 本目录是唯一维护源（源码 + 构建工具）。E 盘插件目录只是部署产物区，不要直接手改。
+> Danbooru 中英双语标签补全 + 本地 Wiki —— ComfyUI 纯前端插件
 
-## 目录角色
+- 作者：latent（潜在哈气空间）
+- 仓库：https://github.com/SANLVZHETANG/ComfyUI-Easy-DanWiki
+- 协议：[MIT](LICENSE)（内置字体为 SIL OFL 1.1，见 `src/fonts/LICENSE-fonts.txt`）
+
+在 ComfyUI 任意多行文本框（正向提示词等）里打字，即弹出中/英/拼音三语补全，
+右侧带真实 wiki 释义、示例图、关联标签跳转胶囊；全部数据本地化，零联网、零 Python 第三方依赖。
+
+## 功能一览
+
+- **30,442 条 Danbooru 标签**：英文名 + 中文译名 + 中文别名 + 双语 wiki 正文 + 无声调拼音
+- **多语言匹配**：英文子串、中文子序列、拼音（`mao`→猫娘）、wiki 正文全文匹配（中英通吃）
+- **wiki 面板**：释义 / 示例图（可选图包，悬浮出大图卡）/ `[[关联标签]]` 胶囊跳转（分栏或替换两种模式）
+- **外观定制器**：主题取色、透明度、字号行高、界面字体（可放 `.ttf` 进插件 `fonts/`）、性能面板、导入/导出配置
+- 入口：设置面板「ComfyUI-Easy-DanWiki」分类中的**「打开」按钮**、顶栏设置菜单、命令面板 `DbTagsAutocomplete.OpenStyler`
+
+## 安装
+
+发布包由 `tools/make_release.py` 生成，共三部分：
+
+| 包 | 必需 | 说明 |
+|---|---|---|
+| `ComfyUI-Easy-DanWiki/` | 是 | 核心插件（含词库 25MB + manifest），整个文件夹放入 `custom_nodes/` |
+| `image-pack-small/` | 否 | 缩略示例图（约 77MB），解压后覆盖合并进 `custom_nodes/` |
+| `image-pack-large/` | 否 | 原图大图卡（约 1.5GB），同上 |
+
+不装图包也能用：图片槽位自动隐藏，其余功能完整；只装一档时另一档自动回退。
+数据根目录自动定位：环境变量 `DBTAGS_DATASET` > 插件内 `dataset/` > 插件根。
+
+## 设置（统一入口：外观定制器）
+
+全部设置在定制器窗内调节（可拖拽，右列实时预览，含搜索试验台与真实试用区），
+配置存 localStorage `dbtags.autocomplete.*`，支持导出/导入 JSON。
+
+| 设置 | 取值 | 默认 | 行为 |
+|---|---|---|---|
+| 主题 `theme` | `dark`/`light`/`pink`/`mint`/琥珀系×3/`custom`/用户预设 | `dark` | CSS 变量整套换色；自定义取色存 `customVars` |
+| 弹窗透明度 `opacity` | 25–100（%） | 100 | 仅弹窗背景半透明（文字实心），带毛玻璃 |
+| 显示语言 `lang` | `zh` / `en` | `zh` | zh 面板用中文 wiki（无则回退英文），下拉带中文标签 |
+| 中文别名表 `aliasTable` | 开/关 | 开 | 中文搜索层级 `zhtag > aliases_zh > zh`；关=仅 `zhtag`。中文查询从不扫日文 `aliases` |
+| 拼音搜索 `pyMode` | `zh-first`/`en-first`/`off` | `zh-first` | 纯字母输入按 `py` 匹配中文；精确/前缀英文名恒优先 |
+| 拼音触发长度 `pyMinLen` | 数字 | 4 | 短于此长度的字母输入不触发拼音 |
+| 匹配wiki正文 `fuzzy` | `always`/`fallback`/`off` | `always` | 整个查询子串匹配 `summary+wiki_zh`（英文≥3字/中文≥2字），命中行显示摘录 |
+| 右侧wiki面板 `showWiki` | 开/关 | 开 | 关=只留候选列表下拉 |
+| 面板内容 `showSummary`/`showImage`/`showLinks` | 开/关 | 开 | 释义正文 / 示例图 / 关联标签胶囊 |
+| 面板布局 `panelImg` | 开/关 | 关 | 关=文字优先；开=图片完整展示优先 |
+| 括号键导航 `bracketNav` | 开/关 | 开 | 候选框打开时 `[` `]` 上下移动焦点（Enter/Tab 插入） |
+| 候选与数据 `mode`/`minPost`/`maxCount` | 限量/全部 + 热度过滤 + 上限 | limit/500/50 | 热度过滤与数量上限常驻生效；最低 post 低于 51 不再增益（上游导出即过滤） |
+
+## 开发说明（本仓库）
+
+本目录是唯一维护源（源码 + 构建工具）；部署产物区只由脚本写入，不要手改。
+
+### 目录角色
 
 | 位置 | 角色 | 读写约定 |
 |---|---|---|
-| `v0.1-补全\`（本目录） | 大本营：源码基线 + 构建工具 | 唯一可编辑处 |
-| `E:\ComfyUI\custom_nodes\danbooru-autocomplete\` | 部署产物区（ComfyUI 加载） | 只由 `tools\deploy.py` 写入 |
+| 本仓库 | 大本营：源码基线 + 构建工具 | 唯一可编辑处 |
+| `E:\ComfyUI\custom_nodes\ComfyUI-Easy-DanWiki\` | 部署产物区（ComfyUI 加载） | 只由 `tools\deploy.py` 写入 |
 | `G:\翻译器\` | 翻译上游数据源 | **只读** |
 | `Desktop\todo\danbooru-general-tags\` | 英文 wiki 源 + 示例图图库 + manifest | **只读**（后端供图指向此） |
-| `Desktop\todo\更人性化的comfyui补全+wiki爬取\` | 旧开发目录 | **退役封存**，不再使用 |
 
-## 数据流
+### 数据流
 
 ```
 G:\翻译器\clear_dantag_wiki.jsonl ──(英文源, 30442 条)──┐
 G:\翻译器\out\translations.jsonl ──(全量中文, 30442 条)──┼→ tools\build_index.py
 Desktop\todo\danbooru-general-tags\manifest.json (图) ──┘        │
                                                                  ▼
-                     E:\...\danbooru-autocomplete\web\js\data\tags_index.json  (v3)
+              E:\...\ComfyUI-Easy-DanWiki\web\js\data\tags_index.json  (v3)
 ```
 
 > v3 起不再产出 `fuzzy_index.json`：正文匹配改为前端运行时直接子串扫描 `summary + wiki_zh`
-> （预构建 9.8MB 小写文档，每次按键 ~10ms），原「模糊搜索词表索引」与「`[短语]` 精确搜索」均已移除。
+> （预构建小写文档，每次按键 ~10ms），原「模糊搜索词表索引」与「`[短语]` 精确搜索」均已移除。
 
 两条数据源 `name` 集合已验证 100% 对齐（30442 ∩ 30442，零缺失）。
 
-## 索引字段契约（tags_index.json v3，每条）
+### 索引字段契约（tags_index.json v3，每条）
 
 | 字段 | 类型 | 来源 | 说明 |
 |---|---|---|---|
@@ -44,70 +95,36 @@ Desktop\todo\danbooru-general-tags\manifest.json (图) ──┘        │
 | `links` | list | 英文源 body | `[{n: 英文target, t: 显示词}]` |
 
 > 构建拼音需要 `pip install pypinyin`（仅大本营构建环境，前端零依赖）。
-> 多音字取词组语境读音（长袜→changwa 正确）；另一读法（zhangwa）不收录，如需要可在构建脚本加人工读音表。
+> 多音字取词组语境读音（长袜→changwa 正确）；另一读法不收录，如需要可在构建脚本加人工读音表。
 
-### 链接标记硬规则（来自 G:\翻译器\out\README.md 契约）
+#### 链接标记硬规则（来自 G:\翻译器\out\README.md 契约）
 
 - 正文内链接形态：`[[target]]` / `[[target|display]]` / `[[target|]]`（空显示合法）
 - `target` **恒为英文**，是跳转依据；构建与渲染阶段**原样保留标记，不得改写**
 - 前端渲染中文模式下 chip 双显：`中文 (english)`，中文优先取 display，空则查目标 tag 的 `zhtag`
 
-## 构建 / 部署命令
+### 构建 / 部署命令
 
 ```bash
 # 冒烟（前 300 条，产物写 smoke\，检查产物结构）
 python tools\build_index.py --limit 300 --out-dir smoke
 
-# 全量重建（直接写 E 盘 data 目录）
+# 全量重建（直接写部署盘 data 目录）
 python tools\build_index.py --limit 0
 
-# 部署 src → E 盘插件（阶段 4 提供）
+# 部署 src → 插件目录
 python tools\deploy.py
+
+# 生成 release\ 分享包（核心包 + 两个图包，全量重拷耗时较长）
+python tools\make_release.py [version]
 ```
 
-## 设置（统一入口：外观定制器）
+## 许可与免责声明
 
-Comfy 设置面板里只剩一项「Danbooru 补全 - 外观定制器」入口；全部设置在定制器窗内调节（可拖拽，右列实时预览）。下表键仍存 localStorage `dbtags.autocomplete.*`（老配置无缝继承），也是导出/导入 JSON 的字段：
+- 代码以 **MIT** 协议发布（见 [LICENSE](LICENSE)）；内置字体为 SIL OFL 1.1（见 `src/fonts/LICENSE-fonts.txt`）。
+- 词库、译文与示例图来自公开站点爬取加工，仅用于学习研究，请自行评估使用合规性。
 
-| 设置 | 取值 | 默认 | 行为 |
-|---|---|---|---|
-| 主题 `theme` | `dark` / `light` / `pink` / `custom` | `dark` | 黑灰 / 米白 / 喵粉 / **自定义**（取色存 `customVars`，见外观定制器）；CSS 变量整套换色 |
-| 弹窗透明度 `opacity` | 25–100（%） | 100 | 仅列表/wiki 弹窗/提示条的**背景**半透明（文字保持实心），带毛玻璃 blur |
-| 显示语言 `lang` | `zh` / `en` | `zh` | zh：面板用 `wiki_zh`（无则回退英文 summary），下拉带中文标签；en：全英形态 |
-| 中文别名表 `aliasTable` | 开/关 | 开 | 中文搜索命中层级 `zhtag > aliases_zh > zh`；关=仅 `zhtag`。中文查询**从不**扫日文 `aliases`（防"巨大→巨大ヒロイン"类误命中） |
-| 拼音搜索 `pyMode` | `zh-first` / `en-first` / `off` | `zh-first` | 纯字母输入按 `py` 匹配中文；zh-first 拼音层插在 英文name 与 alias 之间，en-first 垫底。精确/前缀英文名在两种模式下都优先于拼音 |
-| 拼音触发长度 `pyMinLen` | 数字 | 4 | 字母数低于此值不触发拼音（防 2-3 字母噪音） |
-| 匹配wiki正文 `fuzzy` | `always` / `fallback` / `off` | `always` | 整个查询作为子串匹配 `summary+wiki_zh` 正文（中英皆可，英文≥3字/中文≥2字）；always=追加在普通结果后（去重，上限30），fallback=普通无结果时才匹配。命中行显示正文摘录。**原 `[短语]` 精确搜索模式已删除**，方括号被忽略 |
-| 右侧wiki面板 `showWiki` | 开/关 | 开 | 关=只留候选列表下拉（正文匹配、悬停摘录预览仍有效） |
-| 面板内容 `showSummary`/`showImage`/`showLinks` | 开/关 | 开 | 释义正文 / 示例图 / 关联标签胶囊（跳转）；全部在设置里控制，浮窗内无按钮 |
-| 面板布局 `panelImg` | 开/关 | 关 | 关=文字优先：释义占满剩余高度独立滚动，示例图自动缩放封顶 `min(220px, 34vh)`，空间不足先挤图片；开=图片优先：图片按面板宽完整展示（封顶 `min(78vh, 900px)`，基本免滚动看全图），释义≤140px、整栏滚动。悬浮示例图=自动弹出大图卡，鼠标移开自动关（可移进卡内停留细看，×/Esc/点卡外亦可关） |
-| 括号键导航 `bracketNav` | 开/关 | 开 | 候选框打开时 `[`=上移、`]`=下移焦点条目（Enter/Tab 插入）；关闭则 `[ ]` 正常输入字符 |
+## 致谢
 
-拼音/别名命中在下拉里以小灰字显示实际命中的中文词（悬停 title 标注来源层）。
-搜索语言无关性：任何显示模式下英文输入匹配 name/aliases(+py)，中文输入匹配 zhtag/aliases_zh/zh，正文匹配中英通吃。
-
-### 外观定制器（Styler）
-
-三个入口：设置面板勾选「外观定制器」开关（触发后自动弹回）、顶栏**设置菜单里的真按钮**「Danbooru 补全 - 外观定制器」、命令面板命令 `DbTagsAutocomplete.OpenStyler`（可绑快捷键）。窗体可拖拽、单例。左列分组控件、右侧**实时预览**：
-
-- 定制器窗口本体跟随当前主题配色（含自定义色），亮色主题下原生控件自动切 light 外观；左右两列各自独立滚动，取色时预览滚得再远设置区也不跑
-- **搜索试验台**：输入框直连真实管线（默认词 `cat girl`），任何匹配参数改动即时反映到结果行与统计（命中/显示/热度过滤/正文匹配数）
-- **真实词条面板**：预览面板用 `1girl` 的真实数据渲染（标题/正文/关联胶囊取自索引），正文文字随「匹配语言」切换中英
-- **实际试用区**：预览列顶部是一个挂了真实补全实例的输入框（与节点内完全同管线）——打字、方向键、`[ ]` 跳转展开、分栏/替换面板位置全都当场可试；「wiki 面板」设置组就摆在示例面板下方，改哪个开关面板立刻响应
-- 列表宽度 = 滑条 + 自由数字框（可超出滑条范围，滑条自动截断显示）
-- 行高 = 滑条 + 数字框（20–60px，默认 26；候选行整行变高变疏）
-- **性能面板（默认关）**：Styler「性能」组勾选「记录性能数据」后，纯内存记录最近 300 次查询（耗时/命中/分段），实时显示 索引加载 · JS堆 · P50/P95/max + 阶段均值（扫描/排序/正文匹配）；「跑分基准」跑 6 个代表词 × 20 遍出表（P95>16ms 标红）；开启且面板在屏时有实时 FPS + 主线程长任务(>50ms)监视（关面板自动停止，零常驻开销）。关闭即清空样本，查询路径零额外开销；设置键 `perf`。searchTags 使用索引加载后预计算的小写匹配缓存 + 每查询一次性配置读取（约 2 倍提速，结果与旧实现逐项等价）
-- **界面字体**：把 `.ttf/.otf/.woff/.woff2` 丢进插件目录 `fonts/`（重启 ComfyUI），下拉即出现（显示名=文件名），选中即整套补全 UI 换字体；未安装的系统字体也能用（直接填字体名时代已支持 CSS 字体栈回落）。默认 `sans-serif`
-
-- **主题**：四张色卡（黑灰/米白/喵粉/自定义）；选自定义展开 8 个取色器（列表底/面板底/边框/正文/次要中文/强调/计数/正文命中），`selected`/`fuzzy-bg`/`zh`/rgb 三元组自动推导；「重置自定义配色」回填喵粉默认值
-- **尺寸**：透明度/列表宽度滑条，字号为自由数字输入（无上下限约束，1 起）
-- **匹配**：语言/别名表/拼音模式/触发长度/正文匹配；「候选与数据」组：显示范围（限量=热度过滤+数量上限两参数同时常驻生效，最低post数填 0 关闭过滤；全部显示=兜底 500），数值均为自由输入框
-- **面板**：开关矩阵 + 图片模式/跳转方式/括号导航
-
-所有控件直写既有 `dbtags.autocomplete.*` 键并即时 `applyConfig + refreshPrefs`，与设置面板双向兼容；custom 主题以 root 内联变量生效（优先级压过主题 class 块，切回内置主题自动清除）。
-
-**搜索试验台**：预览区顶部的输入框走 `runQuery`（与真实补全完全同一管线，含 `applyLimit`/`bodySearch` 合并），改「最低post数/显示范围/最多候选数/拼音」等任何匹配参数立刻能在结果行和底部统计里看到效果（命中数 / 显示数 / 被热度过滤数 / 正文匹配数）。旧设置值 pc/count 自动按新「限量」逻辑生效。Comfy 设置面板原有 20+ 项已收编进本窗口，只保留这一条入口。
-
-**数据信息行**：「候选与数据」组底部显示 `数据：v版本 · 30442 标签 · 源站热度下限 51 · 构建时间`——最低post数低于 51 时不再增加结果（上游导出即过滤），解释"设了 50 却没更多候选"的假象。
-
-**导出/导入**：`{ schema: "dbtags-styler/1", settings: {全部键值}, theme_desc: {每色语义+对比度约束说明} }`。`theme_desc` 是给 AI 看的配色说明书——把导出 JSON 丢给 AI 让它改 `settings.customVars` 里的颜色再粘贴回来「应用」即可完成换肤；文件/剪贴板/文本框三种路径，未知键忽略并提示。
+- [ComfyUI-Custom-Scripts](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) — @pythongosssss：本插件的标签补全功能交互源码（光标定位、输入框接管等）参考自该项目。
+- [Danbooru](https://danbooru.donmai.us/) — 标签与 wiki 数据上游。

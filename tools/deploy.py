@@ -17,7 +17,7 @@ import sys
 
 HUB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HUB, "src")
-DST = r"E:\ComfyUI\custom_nodes\danbooru-autocomplete"
+DST = r"E:\ComfyUI\custom_nodes\ComfyUI-Easy-DanWiki"
 
 FILES = [
     "__init__.py",

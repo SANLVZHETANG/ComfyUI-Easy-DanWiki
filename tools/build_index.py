@@ -11,8 +11,8 @@ Input (read-only):
   SRC_BASE/manifest.json              示例图清单 (tag -> {small, large})
 
 Output:
-  E:/ComfyUI/custom_nodes/danbooru-autocomplete/web/js/data/tags_index.json
-  HUB_BASE/build_report.json
+  E:/ComfyUI/custom_nodes/ComfyUI-Easy-DanWiki/web/js/data/tags_index.json
+  <project root>/build_report.json
 
 Per-tag entry keys:
   name / post_count         英文标签与热度
@@ -56,8 +56,8 @@ if sys.stdout and hasattr(sys.stdout, "buffer"):
                                    errors="replace")
 
 SRC_BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags"
-HUB_BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/v0.1-补全"
-PLUGIN_DATA = r"E:/ComfyUI/custom_nodes/danbooru-autocomplete/web/js/data"
+HUB_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
+PLUGIN_DATA = r"E:/ComfyUI/custom_nodes/ComfyUI-Easy-DanWiki/web/js/data"
 WIKI_FILE = r"G:/翻译器/clear_dantag_wiki.jsonl"        # 英文源（上游）
 ZH_DICT_FILE = r"G:/翻译器/out/translations.jsonl"      # 全量中文翻译（上游）
 MANIFEST_FILE = os.path.join(SRC_BASE, "manifest.json")
