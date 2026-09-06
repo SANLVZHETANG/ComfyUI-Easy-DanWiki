@@ -8,7 +8,9 @@ import { $el } from "../../../scripts/ui.js";
 */
 
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
-const VERSION = "v0.11";
+/* versioning follows semver: MAJOR = incompatible changes,
+MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
+const VERSION = "v0.1.1";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -2645,10 +2647,10 @@ class Styler {
 		this.panelWrap.classList.toggle("dbtags-ac-imgprior", Config.get("panelImg", "false") !== "false");
 	}
 	#dataInfo() {
-		if (!index) return "数据未加载";
+		if (!index) return `插件 ${VERSION} · 词库未加载`;
 		let mn = Infinity;
 		for (const t of index.tags) if (t.post_count < mn) mn = t.post_count;
-		return `数据：v${index.version} · ${index.count} 标签 · 源站热度下限 ${mn} · 构建于 ${index.built_at}`;
+		return `插件 ${VERSION} · 词库 v${index.version} · ${index.count} 标签 · 源站热度下限 ${mn} · 构建于 ${index.built_at}`;
 	}
 
 	#buildPickers() {
@@ -2791,6 +2793,7 @@ app.registerExtension({
 		}
 	},
 	setup() {
+		console.log(`[ComfyUI-Easy-DanWiki] ${VERSION} loaded`);
 		dlog("C", "extension loaded");
 		// fire-and-forget: a ~25MB fetch + parse must not gate ComfyUI startup;
 		// everything index-dependent is guarded (onIndexReady / #update)
