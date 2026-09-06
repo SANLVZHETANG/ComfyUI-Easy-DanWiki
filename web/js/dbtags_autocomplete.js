@@ -8,7 +8,7 @@ import { $el } from "../../../scripts/ui.js";
 */
 
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
-const VERSION = "cp52";
+const VERSION = "v0.11";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -190,6 +190,9 @@ function findUserTheme(id) {
 
 function applyConfig() {
 	_langZh = Config.get("lang", "zh") === "zh";
+	_insNoUnder = Config.get("insNoUnder", "true") !== "false";
+	_showNoUnder = Config.get("showNoUnder", "false") === "true";
+	_escParens = Config.get("escParens", "true") !== "false";
 	const root = document.documentElement;
 	const theme = Config.get("theme", "dark");
 	const isUserTheme = typeof theme === "string" && theme.startsWith("up");
@@ -280,6 +283,24 @@ function listField(value) {
 let _langZh = true;
 function langIsZh() {
 	return _langZh;
+}
+
+/* text shaping prefs (cached with lang below: every #set/import/reset runs
+applyConfig, so these can never go stale) */
+let _insNoUnder = false;
+let _showNoUnder = false;
+let _escParens = true;
+
+/* name as shown in lists/panels; underscore->space keeps 1:1 char
+positions, so highlight offsets computed on either form stay valid */
+function dispName(name) {
+	return _showNoUnder ? name.replace(/_/g, " ") : name;
+}
+/* the exact text written into the input box */
+function insertable(name) {
+	let s = _escParens ? name.replace(/[()]/g, (c) => "\\" + c) : name;
+	if (_insNoUnder) s = s.replace(/_/g, " ");
+	return s;
 }
 
 function aliasTableOn() {
@@ -784,21 +805,22 @@ function buildItemRow(item, word) {
 	const { tag, matchType, matchText, snippet } = item;
 	const parts = [];
 	if (matchType === "name") {
-		const lower = tag.name.toLowerCase();
-		const pos = lower.indexOf(word);
+		const disp = dispName(tag.name);
+		const needle = _showNoUnder ? word.replace(/_/g, " ") : word;
+		const pos = disp.toLowerCase().indexOf(needle);
 		parts.push(
 			$el(
 				"span.dbtags-ac-name",
 				{},
 				[
-					$el("span", { textContent: tag.name.substr(0, pos) }),
-					$el("span.dbtags-ac-highlight", { textContent: tag.name.substr(pos, word.length) }),
-					$el("span", { textContent: tag.name.substr(pos + word.length) }),
+					$el("span", { textContent: disp.substr(0, pos) }),
+					$el("span.dbtags-ac-highlight", { textContent: disp.substr(pos, needle.length) }),
+					$el("span", { textContent: disp.substr(pos + needle.length) }),
 				]
 			)
 		);
 	} else {
-		parts.push($el("span.dbtags-ac-name", { textContent: tag.name }));
+		parts.push($el("span.dbtags-ac-name", { textContent: dispName(tag.name) }));
 	}
 	parts.push($el("span.dbtags-ac-count", { textContent: fmtCount(tag.post_count), title: String(tag.post_count) }));
 	if (matchType === "fuzzy" && snippet) {
@@ -921,7 +943,7 @@ class DBTagsAutoComplete {
 	#renderPanel(p, tag, hl) {
 		if (!tag) return;
 		p.tag = tag;
-		p.title.textContent = `${tag.name}  ${fmtCount(tag.post_count)}`;
+		p.title.textContent = `${dispName(tag.name)}  ${fmtCount(tag.post_count)}`;
 		p.insert.textContent = this._addedTags.has(tag.name) ? "✓" : "+";
 		if (this.showSummary) {
 			this.#renderSummary(p, wikiText(tag) || "(无 wiki 释义)", hl || this._highlightTerms);
@@ -1016,7 +1038,7 @@ class DBTagsAutoComplete {
 		}
 		const prevChar = before[tokenStart - 1];
 		const sep = prevChar === " " || prevChar === "\t" ? ", " : ",";
-		const ins = name + sep;
+		const ins = insertable(name) + sep;
 		this.el.selectionStart = this.el.selectionEnd = tokenStart;
 		let pasted = true;
 		try {
@@ -1309,7 +1331,7 @@ class DBTagsAutoComplete {
 				document.body.append(this._previewEl);
 			}
 			this._previewEl.replaceChildren(
-				$el("div.dbtags-ac-preview-title", { textContent: `${tag.name}  ${fmtCount(tag.post_count)}` }),
+				$el("div.dbtags-ac-preview-title", { textContent: `${dispName(tag.name)}  ${fmtCount(tag.post_count)}` }),
 				$el("div.dbtags-ac-preview-text", {
 					textContent: wikiText(tag)
 						? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
@@ -1446,7 +1468,7 @@ class DBTagsAutoComplete {
 		const after = this.helper.getAfterCursor();
 		const sep = !after.trim().startsWith(SEPARATOR.trim()) ? SEPARATOR : "";
 		const t0 = performance.now();
-		this.helper.insertAtCursor(tag.name + sep, -(token?.raw.length ?? 0));
+		this.helper.insertAtCursor(insertable(tag.name) + sep, -(token?.raw.length ?? 0));
 		this.#sync();
 		dlog("D", "insert", tag.name, "token was", token?.raw, "耗时", Math.round(performance.now() - t0) + "ms");
 		this.#hide();
@@ -1742,6 +1764,9 @@ const SETTING_DEFS = {
 	showLinks: "true",
 	panelImg: "false",
 	bracketNav: "true",
+	insNoUnder: "true",
+	showNoUnder: "false",
+	escParens: "true",
 	debug: "false",
 	mode: "limit",
 	minPost: 500,
@@ -1859,13 +1884,13 @@ class Styler {
 		]);
 	}
 
-	#boolRow(label, key, dflt = "true") {
+	#boolRow(label, key, dflt = "true", hint) {
 		const cb = $el("input", { type: "checkbox" });
 		cb.checked = Config.get(key, dflt) !== "false";
 		cb.onchange = () => this.#set(key, cb.checked);
-		return $el("div.dbtags-ac-styler-row", {}, [
-			$el("span.dbtags-ac-styler-label", { textContent: label }), cb,
-		]);
+		const lab = $el("span.dbtags-ac-styler-label", { textContent: label });
+		if (hint) lab.title = hint;
+		return $el("div.dbtags-ac-styler-row", {}, [lab, cb]);
 	}
 
 	#sliderRow(label, key, min, max, dflt, fmt) {
@@ -2199,6 +2224,9 @@ class Styler {
 			this.#comboRow("拼音命中", "pyMode", [["zh-first", "拼音结果靠前"], ["en-first", "英文结果靠前"], ["off", "关闭"]], "zh-first"),
 			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 4),
 			this.#comboRow("正文匹配", "fuzzy", [["always", "始终"], ["fallback", "兜底"], ["off", "关"]], "always"),
+			this.#boolRow("转义括号", "escParens", "true", "插入时 star_(sky) → star \\(sky\\)，防止括号被权重语法吞掉"),
+			this.#boolRow("插入去下划线", "insNoUnder", "true", "插入时 cat_ears → cat ears"),
+			this.#boolRow("列表去下划线", "showNoUnder", "false", "仅显示层：候选列表与面板标题用空格，插入和匹配仍用下划线"),
 		);
 
 		const gMode = this.#group("候选与数据");
