@@ -56,6 +56,7 @@ CORE_FILES = [
     "dbtags_server.py",
     os.path.join("web", "js", "dbtags_autocomplete.js"),
     os.path.join("web", "js", "dbtags_autocomplete.css"),
+    os.path.join("web", "js", "dbtags_themes.css"),
 ]
 
 

@@ -128,62 +128,16 @@
 	--dbtags-ac-toggle-hover: rgba(255, 159, 0, 0.22);
 }
 
-:root.dbtags-theme-amber-mono {
-	/* 琥珀·纯黑：只有琥珀与黑，明度渐变，整体更橘 */
-	--dbtags-ac-bg: #000000;
-	--dbtags-ac-bg-rgb: 0, 0, 0;
-	--dbtags-ac-bg2: #120800;
-	--dbtags-ac-bg2-rgb: 18, 8, 0;
-	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #7a4d00;
-	--dbtags-ac-text: #ffb340;
-	--dbtags-ac-sub: #b37200;
-	--dbtags-ac-highlight: #ff9500;
-	--dbtags-ac-selected: rgba(255, 149, 0, 0.18);
-	--dbtags-ac-count: #ffb340;
-	--dbtags-ac-zh: #b37200;
-	--dbtags-ac-fuzzy: #e08a00;
-	--dbtags-ac-fuzzy-bg: rgba(224, 138, 0, 0.15);
-	--dbtags-ac-font: 13px;
-	--dbtags-ac-row-height: 26px;
-	--dbtags-ac-family: sans-serif;
-	--dbtags-ac-width: 340px;
-	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(255, 149, 0, 0.14);
-	--dbtags-ac-toggle-bg: rgba(255, 149, 0, 0.10);
-	--dbtags-ac-toggle-hover: rgba(255, 149, 0, 0.22);
-}
-
-:root.dbtags-theme-amber-pick {
-	/* 琥珀·取色：图1 暗琥珀底 + 提饱和去灰，向橘靠拢 */
-	--dbtags-ac-bg: #1a0e04;
-	--dbtags-ac-bg-rgb: 26, 14, 4;
-	--dbtags-ac-bg2: #261407;
-	--dbtags-ac-bg2-rgb: 38, 20, 7;
-	--dbtags-ac-alpha: 1;
-	--dbtags-ac-border: #8a5a14;
-	--dbtags-ac-text: #e8a83c;
-	--dbtags-ac-sub: #b06e12;
-	--dbtags-ac-highlight: #ff9f1a;
-	--dbtags-ac-selected: rgba(255, 159, 26, 0.18);
-	--dbtags-ac-count: #d98c26;
-	--dbtags-ac-zh: #96601a;
-	--dbtags-ac-fuzzy: #ff9f1a;
-	--dbtags-ac-fuzzy-bg: rgba(255, 159, 26, 0.16);
-	--dbtags-ac-font: 13px;
-	--dbtags-ac-row-height: 26px;
-	--dbtags-ac-family: sans-serif;
-	--dbtags-ac-width: 340px;
-	--dbtags-ac-panel-width: 290px;
-	--dbtags-ac-pill-bg: rgba(232, 168, 60, 0.18);
-	--dbtags-ac-toggle-bg: rgba(232, 168, 60, 0.12);
-	--dbtags-ac-toggle-hover: rgba(232, 168, 60, 0.24);
-}
-
 /* frosted glass when translucent */
 .dbtags-ac-list,
 .dbtags-ac-panel {
 	backdrop-filter: blur(4px);
+}
+
+html.dbtags-noblur .dbtags-ac-list,
+html.dbtags-noblur .dbtags-ac-panel,
+html.dbtags-noblur .dbtags-ac-hud {
+	backdrop-filter: none;
 }
 
 .dbtags-ac-wrap {
@@ -462,8 +416,10 @@
 	margin-left: 3px;
 }
 
-/* links inside the wiki body: plain text links, same size as the text */
-.dbtags-ac-panel-summary .dbtags-ac-link {
+/* links inside the wiki body: plain text links, same size as the text
+(the HUD shows the wiki body inline too -> same treatment) */
+.dbtags-ac-panel-summary .dbtags-ac-link,
+.dbtags-ac-hud-body .dbtags-ac-link {
 	display: inline;
 	font-size: inherit;
 	background: none;
@@ -475,7 +431,8 @@
 	vertical-align: baseline;
 }
 
-.dbtags-ac-panel-summary .dbtags-ac-link:hover {
+.dbtags-ac-panel-summary .dbtags-ac-link:hover,
+.dbtags-ac-hud-body .dbtags-ac-link:hover {
 	background: var(--dbtags-ac-selected);
 }
 
@@ -647,11 +604,30 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	padding: 1px 4px;
+	margin: 0 -4px;
+	border-radius: 4px;
+}
+
+.dbtags-ac-styler-row:hover {
+	background: rgba(127, 127, 127, 0.10);
+}
+
+/* rows grouped inside a carrier sub-div need the same breathing room the
+   group gives its direct children, or the wiki panel looks crammed */
+.dbtags-ac-styler-subgroup {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 }
 
 .dbtags-ac-styler-label {
-	flex: 0 0 108px;
-	color: var(--dbtags-ac-sub);
+	flex: 0 0 132px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--dbtags-ac-text);
+	opacity: 0.86;
 }
 
 .dbtags-ac-styler-val {
@@ -766,9 +742,79 @@
 	border-color: var(--dbtags-ac-highlight);
 }
 
+/* the "follow global" action rides on its own row directly under its slider;
+   pull it up so it reads as part of that control, not a separate setting */
+.dbtags-ac-styler-row--btn {
+	margin-top: -4px;
+}
+
+/* per-setting help affordance: hidden until the row is hovered, then a small
+   muted-grey "?" (kept deliberately low-key) that opens a floating tooltip */
+.dbtags-ac-styler-help {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	border: 1px solid rgba(128, 128, 128, 0.5);
+	background: rgba(128, 128, 128, 0.10);
+	color: #8f8f8f;
+	font-size: 9px;
+	font-weight: 600;
+	line-height: 1;
+	cursor: help;
+	user-select: none;
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.dbtags-ac-styler-row:hover .dbtags-ac-styler-help,
+.dbtags-ac-styler-help:focus {
+	opacity: 0.55;
+}
+
+.dbtags-ac-styler-help:hover {
+	opacity: 0.85;
+	background: rgba(128, 128, 128, 0.20);
+	color: #6f6f6f;
+}
+
+/* the tooltip is portalled to <body> and fixed-positioned, so it is never
+   clipped by the styler's scrolling control column, and stays theme-neutral
+   (dark) so the long explanations remain legible on any palette */
+.dbtags-ac-tip {
+	position: fixed;
+	z-index: 10005;
+	max-width: 300px;
+	padding: 8px 10px;
+	background: #0b0b10;
+	color: #f2f2f5;
+	border: 1px solid #3a3a44;
+	border-radius: 7px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+	font-family: var(--dbtags-ac-family);
+	font-size: 12px;
+	line-height: 1.65;
+	white-space: normal;
+	word-break: break-word;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+
+.dbtags-ac-tip.on {
+	opacity: 0.98;
+}
+
 .dbtags-ac-sw--on {
 	border-color: var(--dbtags-ac-highlight);
 	box-shadow: 0 0 0 1px var(--dbtags-ac-highlight);
+}
+
+.dbtags-ac-sw--hidden {
+	display: none;
 }
 
 .dbtags-ac-sw-card {
@@ -1072,4 +1118,233 @@
 
 .dbtags-ac-styler-perf-table td:nth-child(n+2) {
 	font-variant-numeric: tabular-nums;
+}
+
+/* ================= detail HUD window ================= */
+.dbtags-ac-hud {
+	position: fixed;
+	z-index: 9998;
+	display: flex;
+	flex-direction: column;
+	/* resize:both needs overflow!=visible; the only real scroller is .dbtags-ac-hud-scroll */
+	overflow: auto;
+	resize: both;
+	min-width: 150px;
+	min-height: 64px;
+	max-width: 92vw;
+	max-height: 96vh;
+	background: rgba(var(--dbtags-ac-bg-rgb), var(--dbtags-ac-hud-alpha, var(--dbtags-ac-alpha)));
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 10px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+	color: var(--dbtags-ac-text);
+	font-family: var(--dbtags-ac-family);
+	backdrop-filter: blur(4px);
+}
+
+.dbtags-ac-hud.dbtags-hud-noblur {
+	backdrop-filter: none;
+}
+
+/* fixed header + tab strip, single scroll zone below: no sticky tricks */
+.dbtags-ac-hud-scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: 6px 8px 10px;
+}
+
+.dbtags-ac-hud--empty {
+	min-height: 40px;
+	opacity: 0.72;
+}
+
+.dbtags-ac-hud--empty .dbtags-ac-hud-head {
+	border-bottom: 0;
+}
+
+.dbtags-ac-hud-head {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 10px;
+	cursor: move;
+	user-select: none;
+	border-bottom: 1px solid var(--dbtags-ac-border);
+}
+
+.dbtags-ac-hud-title {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dbtags-ac-hud-count {
+	margin-left: auto;
+	flex: 0 0 auto;
+	color: var(--dbtags-ac-count);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.dbtags-ac-hud-btn {
+	flex: 0 0 auto;
+	cursor: pointer;
+	padding: 0 5px;
+	border-radius: 5px;
+	opacity: 0.75;
+	line-height: 1.3;
+}
+
+.dbtags-ac-hud-btn:hover {
+	background: rgba(255, 255, 255, 0.12);
+	opacity: 1;
+}
+
+/* tab strip: browser-style chips, wheel-panned, no visible scrollbar */
+.dbtags-ac-hud-tabs {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: flex-end;
+	gap: 4px;
+	padding: 0 8px 5px;
+	overflow-x: auto;
+	scrollbar-width: none;
+	overscroll-behavior: contain;
+	cursor: move;
+	user-select: none;
+}
+
+.dbtags-ac-hud-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.dbtags-ac-hud-tab {
+	flex: 0 0 auto;
+	min-width: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	max-width: 130px;
+	padding: 3px 6px 4px 9px;
+	border: 1px solid var(--dbtags-ac-border);
+	border-bottom: 0;
+	border-radius: 8px 8px 0 0;
+	background: rgba(var(--dbtags-ac-bg-rgb), 0.6);
+	color: var(--dbtags-ac-sub);
+	font-size: 12px;
+	line-height: 1.3;
+	cursor: pointer;
+	user-select: none;
+	overflow: hidden;
+}
+
+.dbtags-ac-hud-tab:hover {
+	color: var(--dbtags-ac-text);
+}
+
+.dbtags-ac-hud-tab--active {
+	background: var(--dbtags-ac-bg2);
+	color: var(--dbtags-ac-text);
+}
+
+.dbtags-ac-hud-tab-lbl {
+	min-width: 0;
+	flex: 0 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dbtags-ac-hud-tab-x {
+	flex: 0 0 auto;
+	padding: 0 2px;
+	border-radius: 4px;
+	color: var(--dbtags-ac-sub);
+}
+
+.dbtags-ac-hud-tab-x:hover {
+	color: var(--dbtags-ac-accent);
+}
+
+.dbtags-ac-hud-tab--preview {
+	font-style: italic;
+}
+
+.dbtags-ac-hud-img {
+	align-self: center;
+	max-width: 100%;
+	max-height: min(240px, 36vh);
+	object-fit: contain;
+	height: auto;
+	border-radius: 6px;
+}
+
+.dbtags-ac-hud-imgprior .dbtags-ac-hud-img:not(.dbtags-ac-hud-img--thumb) {
+	/* pre-JS fallback only: the HUD's syncLayout() sets the authoritative inline
+	flex/width/max-height (sized to the window's OWN height, not 96vh) and must
+	keep winning, so NO !important here — it would override the inline styles. */
+	width: 100%;
+	max-height: none;
+}
+
+.dbtags-ac-hud-img.dbtags-ac-hud-img--thumb {
+	/* small-thumbnail mode: compact frame that pops the large card on hover
+	(specificity matches the imgprior rule and wins as the later declaration) */
+	align-self: flex-start;
+	width: auto;
+	max-width: 96px;
+	max-height: 96px;
+	cursor: zoom-in;
+}
+
+.dbtags-ac-hud-zh {
+	color: var(--dbtags-ac-zh);
+	font-size: calc(var(--dbtags-ac-font) + 1px);
+	font-weight: 700;
+	line-height: 1.35;
+	margin-bottom: 3px;
+}
+
+/* wiki body inline: the HUD window shows image + text directly */
+.dbtags-ac-hud-body {
+	color: var(--dbtags-ac-summary, var(--dbtags-ac-sub));
+	font-size: calc(var(--dbtags-ac-font) - 1px);
+	line-height: 1.5;
+	word-break: break-word;
+	padding-bottom: 4px;
+}
+
+/* HUD tab strip (browser-style pinned tabs) */
+
+
+/* collapsed HUD: a themed ball parked where the window was */
+.dbtags-ac-hud-ball {
+	position: fixed;
+	z-index: 9998;
+	width: 34px;
+	height: 34px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: rgba(var(--dbtags-ac-bg-rgb), var(--dbtags-ac-alpha));
+	border: 1px solid var(--dbtags-ac-border);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+	user-select: none;
+	transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.dbtags-ac-hud-ball:hover {
+	transform: scale(1.12);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
