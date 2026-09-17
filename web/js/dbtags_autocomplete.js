@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.10";
+const VERSION = "v0.2.11";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -1814,7 +1814,6 @@ const SETTING_DEFS = {
 	hudMode: "false",
 	hudOnType: "clear",
 	hudClose: "ball",
-	hudKeepLast: "false",
 	hudImg: "true",
 	hudWiki: "true",
 	hudImgPrior: "false",
@@ -1936,15 +1935,14 @@ function hudInsertTag(name) {
 	console.warn("[dbtags] 暂无活动的补全输入框，无法加入标签:", name);
 }
 
-/* a tag was just inserted into the widget: 输入后 decides the tab fate */
+/* a tag was just inserted into the widget: 输入候选词后 decides the detail fate.
+	"清空" blanks the window (drop tabs + live preview); "保留" holds the current
+	word on screen (pinned so the coming #hide/sessionClosed can't drop it) and
+	leaves the other pinned tabs untouched. */
 function hudTyped(tag) {
 	if (!_hud) return;
-	const keep = Config.get("hudKeepLast", "false") === "true" && tag && tag.name;
-	if (Config.get("hudOnType", "clear") === "clear") {
-		_hud.sessionReset(keep ? tag : null);
-	} else if (keep) {
-		_hud.keepVisible(tag.name);
-	}
+	if (Config.get("hudOnType", "clear") === "clear") _hud.sessionReset();
+	else if (tag && tag.name) _hud.keepVisible(tag.name);
 }
 
 /* getTagMap() needs the index; HUD tabs can be restored before it loads */
@@ -2303,24 +2301,23 @@ class Hud {
 		this.#afterChange();
 	}
 
-/* tag confirmed (typed into the widget): the scratch session is over.
-hudKeepLast pins the just-inserted word so its wiki stays readable after the
-留空窗 clear (a pin survives the following #hide/sessionClosed, a bare
-preview would not). */
-sessionReset(keepTag) {
-	const keep = Config.get("hudKeepLast", "false") === "true" && keepTag && keepTag.name;
-	this.pins = keep ? [keepTag.name] : [];
-	this.preview = null;
-	this.terms = [];
-	this.active = keep ? keepTag.name : null;
-	this.#syncTabs();
-	this.#renderTabs();
-	this.#renderCurrent();
-}
+	/* tag confirmed (typed into the widget) under "清空详细页": the scratch
+	session is over and the window goes blank. ("保留当前详细页" routes through
+	keepVisible instead, which never calls this.) */
+	sessionReset() {
+		this.pins = [];
+		this.preview = null;
+		this.terms = [];
+		this.active = null;
+		this.#syncTabs();
+		this.#renderTabs();
+		this.#renderCurrent();
+	}
 
-/* 保留标签页 mode + hudKeepLast: hold the just-inserted word visible by
-pinning it (so the coming #hide/sessionClosed can't drop the live preview). */
-keepVisible(name) {
+	/* "保留当前详细页": hold the just-inserted word visible by pinning it (so the
+	coming #hide/sessionClosed can't drop the live preview) and activating it;
+	any other already-pinned tabs stay put. */
+	keepVisible(name) {
 	const t = lookupTag(name);
 	if (!t) return;
 	if (!this.pins.includes(name)) {
@@ -2647,7 +2644,7 @@ const HELP = {
 	panelImg: "图片优先：开＝图占满卡片、文字挤到下方；关＝文字优先、图挤在小窗里。",
 	showLinks: "在详情底部显示相关标签的跳转胶囊（可点着连续浏览）。",
 	navMode: "点跳转链接时：分栏展开＝右侧新开一栏并排看；替换当前栏＝在原栏内替换内容。",
-	hudOnType: "标签是输入确认前的暂存架：悬停＝斜体预览，点它或点正文内链才转正；确认输入时整桌清空（可改为保留）。这里设定插入标签后悬浮窗标签页的去留。",
+	hudOnType: "确认输入一个候选词后，悬浮窗怎么处理：\n清空详细页 —— 清掉标签与预览，悬浮窗变成空白页。\n保留当前详细页 —— 停留在刚输入的那个词的释义页，其它已固定标签不动。",
 	hudClose: "点击 × 关闭悬浮窗时：变为悬浮球＝缩成一颗小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
 	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图，鼠标悬浮到大图上再看大图卡。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
@@ -3309,8 +3306,7 @@ class Styler {
 			$el("button.dbtags-ac-styler-btn", { textContent: labelText, title: "取消独立设置，跟随候选列表", onclick }),
 		]);
 		hudRows.append(
-			this.#comboRow("输入候选词后", "hudOnType", [["clear", "清空标签页"], ["keep", "保留标签页"]], "clear"),
-			this.#boolRow("输入后保留最后词", "hudKeepLast", "false", "插入标签后，把最后输入的词固定为标签页、wiki 保持可见（留空窗/保留标签页两种模式都生效）；关＝插入后不保留该词"),
+			this.#comboRow("输入候选词后", "hudOnType", [["clear", "清空详细页（变空白）"], ["keep", "保留当前详细页"]], "clear"),
 			this.#comboRow("点击X时", "hudClose", [["ball", "变为悬浮球"], ["clear", "直接关闭"]], "ball"),
 			hudOpRow,
 			hudFollowRow("跟随全局不透明度", () => {
