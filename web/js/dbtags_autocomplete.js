@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.11";
+const VERSION = "v0.2.12";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -1814,6 +1814,7 @@ const SETTING_DEFS = {
 	hudMode: "false",
 	hudOnType: "clear",
 	hudClose: "ball",
+	hudDblCloseAll: "false",
 	hudImg: "true",
 	hudWiki: "true",
 	hudImgPrior: "false",
@@ -1950,6 +1951,24 @@ function lookupTag(name) {
 	return index ? getTagMap().get(normName(name)) : null;
 }
 
+/* clipboard copy: async API with a hidden-textarea execCommand fallback */
+function legacyCopy(text) {
+	const ta = $el("textarea");
+	ta.value = text;
+	ta.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0";
+	document.body.append(ta);
+	ta.select();
+	try { document.execCommand("copy"); } catch { void 0; }
+	ta.remove();
+}
+function copyText(text) {
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+	} else {
+		legacyCopy(text);
+	}
+}
+
 function hudSync() {
 	const on = _hudOn;
 	if (on && !_hud) {
@@ -1976,6 +1995,9 @@ class Hud {
 		this.active = null; // "__preview__" or a pinned tag name
 		this._imgSeq = 0;
 		this.title = $el("span.dbtags-ac-hud-title");
+		this.title.style.cursor = "pointer";
+		this.title.title = "点击复制该 tag 到剪贴板";
+		this.title.onclick = (e) => { e.stopPropagation(); this.#copyTag(); };
 		this.count = $el("span.dbtags-ac-hud-count");
 		const close = $el("span.dbtags-ac-hud-x.dbtags-ac-hud-btn", {
 			textContent: "×",
@@ -1997,11 +2019,35 @@ class Hud {
 			if (t) hudInsertTag(t.name);
 		};
 		this.head = $el("div.dbtags-ac-hud-head", {}, [this.title, this.count, add, close]);
-		// dblclick on the blank title bar = same as × (controls excluded)
+		// dblclick on the blank title bar = same as × (buttons + the clickable
+		// title text excluded: double-clicking the tag name copies, it should
+		// never close the window)
 		this.head.addEventListener("dblclick", (e) => {
-			if (!e.target.closest(".dbtags-ac-hud-btn")) this.#close();
+			if (!e.target.closest(".dbtags-ac-hud-btn, .dbtags-ac-hud-title")) this.#close();
 		});
 		this.tabs = $el("div.dbtags-ac-hud-tabs");
+		// "双击标签页关闭所有标签页": chips are rebuilt on every activate, so a
+		// native dblclick never lands on the same node -> detect manually on the
+		// container by (last-clicked tab name + timing). Uses chip.title as the
+		// key; the preview chip has a fixed title so it counts as a tab too.
+		this._tabClickName = null;
+		this._tabClickT = 0;
+		this.tabs.addEventListener("click", (e) => {
+			if (Config.get("hudDblCloseAll", "false") === "false") return;
+			if (e.target.closest(".dbtags-ac-hud-tab-x")) return;
+			const chip = e.target.closest(".dbtags-ac-hud-tab");
+			if (!chip) return;
+			const name = chip.title;
+			const now = performance.now();
+			if (name && this._tabClickName === name && now - this._tabClickT < 400) {
+				this._tabClickName = null;
+				this._tabClickT = 0;
+				this.sessionReset();
+				return;
+			}
+			this._tabClickName = name;
+			this._tabClickT = now;
+		});
 		this.img = $el("img.dbtags-ac-hud-img");
 		this.img.style.display = "none";
 		this._imgShown = false;
@@ -2381,8 +2427,38 @@ class Hud {
 			pv.append($el("span.dbtags-ac-hud-tab-lbl", { textContent: dispName(this.preview.name) }));
 			pv.onclick = () => this.pin();
 			this.tabs.append(pv);
-			this.tabs.scrollLeft = this.tabs.scrollWidth;
 		}
+		this.#focusActiveTab();
+	}
+
+	/* bring the active tab (the newest preview chip, or whatever you just
+	activated) into view by centring it: with many tabs the strip otherwise
+	stays parked at the far left and you lose the current one. Uses rect deltas
+	because offsetLeft is relative to the fixed HUD, not the scrolling strip. */
+	#focusActiveTab() {
+		const el = this.tabs.querySelector(".dbtags-ac-hud-tab--active") || this.tabs.lastElementChild;
+		if (!el) return;
+		const max = this.tabs.scrollWidth - this.tabs.clientWidth;
+		if (max <= 0) return;
+		const cr = this.tabs.getBoundingClientRect();
+		const r = el.getBoundingClientRect();
+		const want = this.tabs.scrollLeft + (r.left - cr.left) - (cr.width - r.width) / 2;
+		this.tabs.scrollLeft = Math.max(0, Math.min(want, max));
+	}
+
+	/* single-click the window title: copy the current tag (raw name) and flash
+	confirmatory feedback, then restore the real label after a moment */
+	#copyTag() {
+		const t = this.#current();
+		if (!t || !t.name) return;
+		copyText(t.name);
+		this.title.textContent = "✓ 已复制 " + dispName(t.name);
+		clearTimeout(this._copyT);
+		this._copyT = setTimeout(() => {
+			if (!this.title.isConnected) return;
+			const cur = this.#current();
+			this.title.textContent = cur ? dispName(cur.name) : "";
+		}, 1000);
 	}
 
 	#renderCurrent() {
@@ -2646,6 +2722,7 @@ const HELP = {
 	navMode: "点跳转链接时：分栏展开＝右侧新开一栏并排看；替换当前栏＝在原栏内替换内容。",
 	hudOnType: "确认输入一个候选词后，悬浮窗怎么处理：\n清空详细页 —— 清掉标签与预览，悬浮窗变成空白页。\n保留当前详细页 —— 停留在刚输入的那个词的释义页，其它已固定标签不动。",
 	hudClose: "点击 × 关闭悬浮窗时：变为悬浮球＝缩成一颗小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
+	hudDblCloseAll: "双击任意标签页 = 关闭所有标签页、悬浮窗清空成空白页；关 = 双击只是切换标签。",
 	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图，鼠标悬浮到大图上再看大图卡。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
@@ -3308,6 +3385,7 @@ class Styler {
 		hudRows.append(
 			this.#comboRow("输入候选词后", "hudOnType", [["clear", "清空详细页（变空白）"], ["keep", "保留当前详细页"]], "clear"),
 			this.#comboRow("点击X时", "hudClose", [["ball", "变为悬浮球"], ["clear", "直接关闭"]], "ball"),
+			this.#boolRow("双击标签页关闭所有标签页", "hudDblCloseAll", "false"),
 			hudOpRow,
 			hudFollowRow("跟随全局不透明度", () => {
 				this.#set("hudOpacity", "");

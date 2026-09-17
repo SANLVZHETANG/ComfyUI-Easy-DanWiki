@@ -1206,6 +1206,11 @@ html.dbtags-noblur .dbtags-ac-hud {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	cursor: pointer;
+}
+
+.dbtags-ac-hud-title:hover {
+	text-decoration: underline;
 }
 
 .dbtags-ac-hud-count {
