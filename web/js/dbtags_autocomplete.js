@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.12";
+const VERSION = "v0.2.13";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -2645,10 +2645,12 @@ class Hud {
 
 	#wireDrag() {
 		let sx = 0, sy = 0, ox = 0, oy = 0, on = false;
-		// head bar and empty tab-strip area are both drag surfaces; controls are not
+		// head bar and empty tab-strip area are both drag surfaces; controls and
+		// the clickable title (which copies the tag on click) are NOT drag
+		// handles, else pointer capture would swallow the title's click
 		for (const surf of [this.head, this.tabs]) {
 			surf.addEventListener("pointerdown", (e) => {
-				if (e.target.closest(".dbtags-ac-hud-btn,.dbtags-ac-hud-tab")) return;
+				if (e.target.closest(".dbtags-ac-hud-btn,.dbtags-ac-hud-tab,.dbtags-ac-hud-title")) return;
 				on = true;
 				sx = e.clientX;
 				sy = e.clientY;
