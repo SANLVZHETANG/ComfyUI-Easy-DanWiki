@@ -667,12 +667,12 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 
 .dbtags-ac-styler-swatches {
-	display: flex;
-	flex-wrap: wrap;
+	/* responsive even-fill grid: columns stretch to consume the column width
+	   (no ragged right gap / no nested scrollbar as the settings column is
+	   resized, e.g. after widening it) */
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
 	gap: 8px;
-	max-height: 136px;
-	overflow-y: auto;
-	padding-right: 4px;
 }
 
 .dbtags-ac-styler-swatches::-webkit-scrollbar {
@@ -687,7 +687,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* theme swatch: mini mock of the popup (list bg, selected row, text bars) */
 .dbtags-ac-sw {
 	position: relative;
-	width: 78px;
+	min-width: 0;
 	padding: 4px 4px 3px;
 	background: var(--dbtags-ac-bg2);
 	border: 1px solid var(--dbtags-ac-border);
@@ -1001,6 +1001,20 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-styler-lab-title {
 	color: var(--dbtags-ac-text);
 	font-size: 12px;
+}
+
+/* 搜索试验台 + 实际试用 share one top strip, each ~half; the live preview
+   (duo) flows below them */
+.dbtags-ac-styler-testbeds {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.dbtags-ac-styler-testbeds > .dbtags-ac-styler-lab {
+	flex: 1 1 50%;
+	min-width: 0;
+	margin-bottom: 0;
 }
 
 .dbtags-ac-styler-lab-input {

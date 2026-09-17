@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.6";
+const VERSION = "v0.2.7";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -2621,7 +2621,7 @@ function openStyler() {
 		_styler = new Styler();
 	} catch (err) {
 		console.error("[dbtags] styler failed to open:", err);
-		window.alert("外观定制器打开失败：" + (err && err.message ? err.message : err));
+		window.alert("设置和外观打开失败：" + (err && err.message ? err.message : err));
 	}
 }
 
@@ -2657,8 +2657,10 @@ class Styler {
 	constructor() {
 		this.swatchEls = [];
 		this.colorInputs = {};
+		this._hudPreview = false; // live "详情悬浮窗" demo anchored beside the window
+		this._hudDemoTag = null;   // the tag currently shown in that demo
 		this.el = $el("div.dbtags-ac-styler");
-		const head = $el("div.dbtags-ac-styler-head", { textContent: "ComfyUI-Easy-DanWiki 外观定制器" });
+		const head = $el("div.dbtags-ac-styler-head", { textContent: "ComfyUI-Easy-DanWiki 设置和外观" });
 		head.append($el("button.dbtags-ac-close", {
 			textContent: "×",
 			title: "关闭",
@@ -2678,15 +2680,65 @@ class Styler {
 		// a floating tooltip must not linger detached from its badge while the
 		// control column scrolls out from under it
 		this.ctrl.addEventListener("scroll", () => this.#tipHide(), true);
+		// if the carrier is already 详情悬浮窗, show the live HUD preview on open
+		if (Config.get("hudMode", "false") === "true") {
+			this._hudPreview = true;
+			this.#updateHudPreview();
+		}
 	}
 
 	close() {
 		this._fpsRun = false;
 		this.demoAC?.destroy();
 		this.demoAC = null;
+		// clear the demo so no stray "preview tag" HUD lingers after closing
+		this._hudPreview = false;
+		this.#hideHudPreview();
 		if (_stylerTipEl) { _stylerTipEl.remove(); _stylerTipEl = null; }
 		this.el.remove();
 		_styler = null;
+	}
+
+	/* a stable, index-independent demo tag so the styler's live HUD preview has
+	something to render (falls back to the first tag once the index is ready) */
+	#demoTag() {
+		for (const n of ["1girl", "cat_ears", "cat_tail", "sky", "long_hair"]) {
+			const t = lookupTag(n);
+			if (t) return t;
+		}
+		return (index && index.tags && index.tags[0]) || null;
+	}
+
+	#updateHudPreview() {
+		if (!this._hudPreview || !_hud || !_hudOn || !this.el.isConnected) return;
+		const tag = this._hudDemoTag || this.#demoTag();
+		if (!tag) {
+			onIndexReady(() => {
+				if (this._hudPreview && this.el.isConnected) { this._hudDemoTag = null; this.#updateHudPreview(); }
+			});
+			return;
+		}
+		this._hudDemoTag = tag;
+		_hud.hideBall();
+		_hud.show(tag, []);
+		// anchor the real HUD to the right-hand side of the settings window
+		const el = _hud.el;
+		el.style.display = "";
+		const r = this.el.getBoundingClientRect();
+		const w = el.offsetWidth || 250;
+		const h = el.offsetHeight || 320;
+		let left = r.right - w - 16;
+		if (left < 8) left = Math.max(8, r.right - w - 8);
+		left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+		let top = Math.max(8, r.top + 92);
+		top = Math.min(top, Math.max(8, window.innerHeight - h - 8));
+		el.style.left = left + "px";
+		el.style.top = top + "px";
+	}
+
+	#hideHudPreview() {
+		this._hudDemoTag = null;
+		if (_hud) { _hud.sessionClosed(); _hud.el.style.display = "none"; }
 	}
 
 	/* every control write funnels through here: store -> re-apply -> live everywhere */
@@ -3228,6 +3280,11 @@ class Styler {
 			this.#set("showWiki", v === "off" ? "false" : "true");
 			this.#set("hudMode", v === "hud" ? "true" : "false");
 			syncCarrier();
+			// picking 详情悬浮窗 pops the real HUD beside the window so its
+			// settings can be tuned live; leaving that mode clears the demo
+			this._hudPreview = v === "hud";
+			if (this._hudPreview) this.#updateHudPreview();
+			else this.#hideHudPreview();
 		};
 		cardRows.append(
 			this.#boolRow("wiki 正文", "showSummary", "true", "卡片内显示标签的 wiki 正文；不勾＝只看中文名和示例图"),
@@ -3296,7 +3353,12 @@ class Styler {
 				}
 				getCustomColors.cache = null;
 				applyConfig();
-				refreshAllInstances();
+		refreshAllInstances();
+		// while the HUD demo is on screen, refresh it for content-changing hud*
+		// edits (wiki/image/img-mode/img-priority/tabs). hudOpacity/hudFont are
+		// pure CSS-var tweaks already applied by hudSync, so re-rendering them
+		// here would only reload the demo image and flicker mid-drag.
+		if (this._hudPreview && /^hud/.test(key) && key !== "hudOpacity" && key !== "hudFont") this.#updateHudPreview();
 				this.close();
 				openStyler();
 			},
@@ -3511,7 +3573,11 @@ class Styler {
 		// every settings group (incl. wiki 面板) lives in the left column now,
 		// so the right column is purely the live preview / testbed
 		const duo = $el("div.dbtags-ac-styler-duo", {}, [labBody, this.panelWrap]);
-		this.prev.append(labHead, duo, demo);
+		// two testbeds share the top strip (each ~half), the live preview sits
+		// below: 搜索试验台 on the left drives the list, 实际试用 on the right is
+		// a real completion instance with its own popup
+		const testbeds = $el("div.dbtags-ac-styler-testbeds", {}, [labHead, demo]);
+		this.prev.append(testbeds, duo);
 		this.#syncPreviewPanel();
 		this.#refreshPreviewPanel();
 		onIndexReady(() => {
@@ -3777,8 +3843,8 @@ app.registerExtension({
 		// (custom setting renderer): we draw a real push button in the panel.
 		app.ui.settings.addSetting({
 			id: ID + ".openStyler",
-			category: ["ComfyUI-Easy-DanWiki", "外观定制器"],
-			name: "打开外观定制器（主题/匹配/面板全部设置都在窗内）",
+			category: ["ComfyUI-Easy-DanWiki", "设置和外观"],
+			name: "打开设置和外观（主题/匹配/面板全部设置都在窗内）",
 			type: () => {
 				const btn = $el("button.dbtags-settings-btn", {
 					type: "button",
@@ -3804,7 +3870,7 @@ app.registerExtension({
 
 		try {
 			app.command?.add?.("DbTagsAutocomplete.OpenStyler", {
-				name: "ComfyUI-Easy-DanWiki：打开外观定制器",
+				name: "ComfyUI-Easy-DanWiki：打开设置和外观",
 				description: "打开 ComfyUI-Easy-DanWiki 的外观与行为设置窗口",
 				function: () => openStyler(),
 			});
@@ -3814,9 +3880,9 @@ app.registerExtension({
 		try {
 			app.menu?.addSettingsMenu?.({
 				id: "dbtags.openStyler.menu",
-				title: "ComfyUI-Easy-DanWiki - 外观定制器",
-				label: "ComfyUI-Easy-DanWiki - 外观定制器",
-				icon: "pi pi-palette",
+				title: "ComfyUI-Easy-DanWiki - 设置和外观",
+				label: "ComfyUI-Easy-DanWiki - 设置和外观",
+				icon: "pi pi-sliders-h",
 				callback: () => openStyler(),
 			});
 		} catch {
