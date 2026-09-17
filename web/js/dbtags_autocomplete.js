@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.9";
+const VERSION = "v0.2.10";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -2631,18 +2631,24 @@ shared home for combo/slider help and the long paragraphs that used to be
 dumped inline and wrecked the two-column readability. Keyed by config key.
 NOTE: several of these are interim wording pending the final copy. */
 const HELP = {
+	opacity: "100 为关闭透明，节约性能。",
+	rowH: "每个候选词条的高度。",
+	widthMode: "撑开 —— 宽度设置为候选列表中最长候选词的宽度。\n固定 —— 长度为固定数值。",
+	aliasTable: "由 LLM 根据英文 tag 与 wiki 正文生成的可能结果。",
+	fuzzy: "始终 —— 始终显示匹配到的 WIKI 正文内容。\n兜底 —— 未匹配到中文名称与别名时匹配 WIKI 正文。\n关闭 —— 始终不匹配 WIKI 正文。",
+	showSummary: "是否显示释义。",
+	hudWiki: "是否显示释义。",
+	hudOpacity: "独立于候选词窗的透明度。",
+	hudFont: "独立于候选词窗的字号。",
+	bracketNav: "使用 [ 和 ] 控制选择的候选词。",
 	carrier: "选中一个标签时在哪里显示它的详情：卡片面板＝在输入框旁的固定面板；详情悬浮窗＝跟随的悬浮窗口；关闭＝不显示详情。下方的具体设置会随这里所选的载体切换。",
-	showSummary: "卡片内显示标签的 wiki 正文；不勾＝只看中文名和示例图。",
 	showImage: "在卡片面板里显示标签的示例图。",
 	imgMode: "大图＝卡片内直接铺示例图；缩略图＝显示小图，鼠标悬浮到大图上再看大图卡。",
-	panelImg: "图片优先：开＝图占满卡片、文字挤到下方；关＝文字优先、图收在小窗里。",
+	panelImg: "图片优先：开＝图占满卡片、文字挤到下方；关＝文字优先、图挤在小窗里。",
 	showLinks: "在详情底部显示相关标签的跳转胶囊（可点着连续浏览）。",
 	navMode: "点跳转链接时：分栏展开＝右侧新开一栏并排看；替换当前栏＝在原栏内替换内容。",
-	bracketNav: "用 [ ] 键切换「浏览位」——即卡片面板或悬浮窗当前正在显示的那个标签，无需点开候选列表。",
 	hudOnType: "标签是输入确认前的暂存架：悬停＝斜体预览，点它或点正文内链才转正；确认输入时整桌清空（可改为保留）。这里设定插入标签后悬浮窗标签页的去留。",
-	hudClose: "点 × 关闭悬浮窗时：收进小球＝缩成一颗悬浮小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
-	hudOpacity: "悬浮窗可独立于候选列表的不透明度（默认跟随全局）；调低＝半透明毛玻璃，100%＝不透明。",
-	hudFont: "悬浮窗可独立于候选列表的字号（默认跟随全局字号），只缩放悬浮窗内文字。",
+	hudClose: "点击 × 关闭悬浮窗时：变为悬浮球＝缩成一颗小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
 	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图，鼠标悬浮到大图上再看大图卡。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
@@ -3200,9 +3206,7 @@ class Styler {
 			$el("button.dbtags-ac-styler-btn", { textContent: "导入预设", onclick: () => this.#importTheme() }),
 			$el("button.dbtags-ac-styler-btn", { textContent: "恢复全部主题", onclick: () => this.#restoreAllThemes() }),
 		);
-		gTheme.append(swRow, btnRow, $el("div.dbtags-ac-styler-hint", {
-			textContent: "点色卡右上角「−」可把不想要的内置主题从选择器移除；「恢复全部主题」全部找回；「存为预设」把当前配色保存为可复用预设",
-		}));
+		gTheme.append(swRow, btnRow);
 		this.pickerBox = $el("div.dbtags-ac-styler-pickers");
 		gTheme.append(this.pickerBox);
 		this.#buildPickers();
@@ -3210,9 +3214,6 @@ class Styler {
 		const gSize = this.#group("尺寸与不透明度");
 		gSize.append(
 			this.#sliderRow("不透明度", "opacity", 25, 100, 100, (x) => x + "%"),
-			$el("div.dbtags-ac-styler-hint", {
-				textContent: "100%＝完全不透明（此时背景模糊自动停用，最省 GPU）；调低才变半透明",
-			}),
 			this.#boolRow("背景模糊", "blur", "true", "毛玻璃 backdrop-filter：仅在半透明时有可见效果；不透明(100%)时本就被自动停用，关掉可强制省 GPU"),
 			this.#numRow("字号", "font", 13, "px"),
 			this.#fontRow(),
@@ -3223,7 +3224,7 @@ class Styler {
 
 		const gMatch = this.#group("匹配与搜索");
 		gMatch.append(
-			this.#comboRow("匹配语言", "lang", [["zh", "中文（回退英文）"], ["en", "English"]], "zh"),
+			this.#comboRow("语言选择", "lang", [["zh", "中文"], ["en", "English"]], "zh"),
 			this.#boolRow("别名表", "aliasTable"),
 			this.#comboRow("拼音命中", "pyMode", [["zh-first", "拼音结果靠前"], ["en-first", "英文结果靠前"], ["off", "关闭"]], "zh-first"),
 			this.#sliderRow("拼音最小长度", "pyMinLen", 1, 12, 4),
@@ -3237,7 +3238,7 @@ class Styler {
 		gMode.append(
 			this.#comboRow("显示范围", "mode", [["limit", "限量（热度过滤 + 数量上限）"], ["all", "全部显示（可能卡顿）"]], "limit"),
 			this.#numRow("最低post数(0=关)", "minPost", 500),
-			this.#numRow("最多候选数", "maxCount", 50),
+			this.#numRow("显示的候选词条数", "maxCount", 50),
 			this.#boolRow("调试日志", "debug"),
 		);
 		this.dataHintEl = $el("div.dbtags-ac-styler-hint", { textContent: this.#dataInfo() });
@@ -3287,7 +3288,7 @@ class Styler {
 			else this.#hideHudPreview();
 		};
 		cardRows.append(
-			this.#boolRow("wiki 正文", "showSummary", "true", "卡片内显示标签的 wiki 正文；不勾＝只看中文名和示例图"),
+			this.#boolRow("wiki 正文", "showSummary", "true"),
 			this.#boolRow("示例图", "showImage"),
 			this.#comboRow("示例图尺寸", "imgMode", [["large", "大图"], ["small", "缩略图（悬浮看大图卡）"]], "large"),
 			this.#boolRow("图片优先", "panelImg", "false"),
@@ -3308,9 +3309,9 @@ class Styler {
 			$el("button.dbtags-ac-styler-btn", { textContent: labelText, title: "取消独立设置，跟随候选列表", onclick }),
 		]);
 		hudRows.append(
-			this.#comboRow("输入后", "hudOnType", [["clear", "清空标签页（留空窗）"], ["keep", "保留标签页"]], "clear"),
+			this.#comboRow("输入候选词后", "hudOnType", [["clear", "清空标签页"], ["keep", "保留标签页"]], "clear"),
 			this.#boolRow("输入后保留最后词", "hudKeepLast", "false", "插入标签后，把最后输入的词固定为标签页、wiki 保持可见（留空窗/保留标签页两种模式都生效）；关＝插入后不保留该词"),
-			this.#comboRow("× 关闭时", "hudClose", [["ball", "收进小球（点小球恢复）"], ["clear", "直接关闭"]], "ball"),
+			this.#comboRow("点击X时", "hudClose", [["ball", "变为悬浮球"], ["clear", "直接关闭"]], "ball"),
 			hudOpRow,
 			hudFollowRow("跟随全局不透明度", () => {
 				this.#set("hudOpacity", "");
@@ -3327,7 +3328,7 @@ class Styler {
 				hudFontRange.value = String(g);
 				hudFontValEl.textContent = g + "px";
 			}),
-			this.#boolRow("wiki 正文", "hudWiki", "true", "悬浮窗顶部显示标签的 wiki 正文；不勾＝只看图（图卡模式）"),
+			this.#boolRow("wiki 正文", "hudWiki", "true"),
 			this.#boolRow("示例图", "hudImg", "true", "悬浮窗顶部显示示例图；不勾＝只看中文名和 wiki 正文"),
 			this.#comboRow("示例图尺寸", "hudImgMode", [["large", "大图"], ["small", "缩略图（悬浮看大图卡）"]], "large"),
 			this.#comboRow("图片优先", "hudImgPrior", [["false", "关（文字优先，图小正文多）"], ["true", "开（图片优先，图铺满）"]], "false"),
@@ -3336,7 +3337,7 @@ class Styler {
 			carrierRow,
 			cardRows,
 			hudRows,
-			this.#boolRow("括号键导航", "bracketNav", "true", "[ ] 切换卡片面板或悬浮窗的浏览位"),
+			this.#boolRow("括号键导航", "bracketNav", "true"),
 		);
 		syncCarrier();
 		const gDanger = this.#group("重置");

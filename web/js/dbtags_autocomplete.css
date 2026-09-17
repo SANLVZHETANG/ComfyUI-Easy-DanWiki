@@ -797,7 +797,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 	font-family: var(--dbtags-ac-family);
 	font-size: 12px;
 	line-height: 1.65;
-	white-space: normal;
+	white-space: pre-wrap;
 	word-break: break-word;
 	pointer-events: none;
 	opacity: 0;
