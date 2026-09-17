@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.7";
+const VERSION = "v0.2.8";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -3566,7 +3566,7 @@ class Styler {
 		});
 		this.demoAC = new DBTagsAutoComplete(this.demoInput, { name: "styler-demo", type: "COMBO", options: {} });
 		const demo = $el("div.dbtags-ac-styler-lab", {}, [
-			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（面板设置见左栏，即时生效）" }),
+			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（即时生效）" }),
 			this.demoInput,
 		]);
 		// the duo: input row sits above it so list and panel share one top edge;

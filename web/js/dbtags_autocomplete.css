@@ -1007,14 +1007,23 @@ html.dbtags-noblur .dbtags-ac-hud {
    (duo) flows below them */
 .dbtags-ac-styler-testbeds {
 	display: flex;
-	align-items: flex-start;
+	align-items: stretch;
 	gap: 10px;
 }
 
 .dbtags-ac-styler-testbeds > .dbtags-ac-styler-lab {
 	flex: 1 1 50%;
 	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	margin-bottom: 0;
+}
+
+/* pin both inputs to the bottom edge so they share one baseline regardless of
+   how many lines the title above them wraps to */
+.dbtags-ac-styler-testbeds > .dbtags-ac-styler-lab > input {
+	margin-top: auto;
 }
 
 .dbtags-ac-styler-lab-input {
@@ -1064,8 +1073,8 @@ html.dbtags-noblur .dbtags-ac-hud {
 	border: 1px solid var(--dbtags-ac-border);
 	border-radius: 4px;
 	color: var(--dbtags-ac-text);
-	font-size: var(--dbtags-ac-font);
-	padding: 4px 6px;
+	font-size: 12px;
+	padding: 4px 8px;
 }
 
 .dbtags-ac-imgcard {
