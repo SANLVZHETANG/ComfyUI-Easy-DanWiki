@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.13";
+const VERSION = "v0.3.0-alpha.1";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -214,7 +214,20 @@ function findUserTheme(id) {
 // bumped on every applyConfig(); lets the HUD detect a theme/color swap and
 // re-capture its native background instead of trusting a stale inline override
 let _themeEpoch = 0;
+/* Factory-default seed. The call sites all read Config.get(key, literal), so a
+fresh install / a "恢复默认" (which clears localStorage) would otherwise fall back
+to those scattered literals. Writing SETTING_DEFS into any never-set key once makes
+SETTING_DEFS the single authoritative shipped-default table (and keeps it
+forward-compatible: a newly added key gets its default on first run after upgrade). */
+function seedDefaults() {
+	for (const k of Object.keys(SETTING_DEFS)) {
+		if (localStorage.getItem(ID + "." + k) === null) {
+			localStorage.setItem(ID + "." + k, String(SETTING_DEFS[k]));
+		}
+	}
+}
 function applyConfig() {
+	seedDefaults();
 	_langZh = Config.get("lang", "zh") === "zh";	_insNoUnder = Config.get("insNoUnder", "true") !== "false";
 	_showNoUnder = Config.get("showNoUnder", "false") === "true";
 	_escParens = Config.get("escParens", "true") !== "false";
@@ -1794,7 +1807,7 @@ async function loadIndex() {
 
 /* full key list + defaults (P18: export/import contract) */
 const SETTING_DEFS = {
-	theme: "dark",
+	theme: "retro-apple",
 	opacity: 100,
 	hudOpacity: "",
 	hudFont: "",
@@ -1808,13 +1821,13 @@ const SETTING_DEFS = {
 	showSummary: "true",
 	showImage: "true",
 	showLinks: "true",
-	panelImg: "false",
-	blur: "true",
+	panelImg: "true",
+	blur: "false",
 	bracketNav: "true",
-	hudMode: "false",
-	hudOnType: "clear",
+	hudMode: "true",
+	hudOnType: "keep",
 	hudClose: "ball",
-	hudDblCloseAll: "false",
+	hudDblCloseAll: "true",
 	hudImg: "true",
 	hudWiki: "true",
 	hudImgPrior: "false",
@@ -1823,18 +1836,18 @@ const SETTING_DEFS = {
 	escParens: "true",
 	debug: "false",
 	mode: "limit",
-	minPost: 500,
-	maxCount: 50,
+	minPost: 50,
+	maxCount: 114,
 	imgMode: "large",
 	hudImgMode: "large",
 	navMode: "A",
-	widthMode: "fit",
-	fontFamily: "",
-	rowH: 26,
+	widthMode: "fixed",
+	fontFamily: "MapleMonoNormal-NF-CN-Medium",
+	rowH: 24,
 	perf: "off",
-	width: 340,
-	font: 13,
-	customVars: "",
+	width: 300,
+	font: 16,
+	customVars: '{"bg":"#f8e7ee","bg2":"#fdf0f5","border":"#e38fba","text":"#53263e","sub":"#8b4e6d","summary":"#8b4e6d","highlight":"#ec62a1","count":"#c34e81","fuzzy":"#d77160"}',
 };
 
 const THEME_DESC = {

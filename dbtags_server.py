@@ -13,7 +13,7 @@ resolved with no configuration:
   1. $DBTAGS_DATASET environment variable (absolute path)
   2. <plugin>/dataset
   3. <plugin> itself
-  4. legacy dev path (last resort, only exists on the author machine)
+  4. $DBTAGS_LEGACY_BASE env var (author opt-in dev path; empty by default)
 Each request re-verifies the resolved file, so a missing image pack simply
 404s (the frontend hides the image slot) instead of breaking anything.
 
@@ -28,7 +28,7 @@ from aiohttp import web
 from server import PromptServer
 
 _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
-_LEGACY_BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags"
+_LEGACY_BASE = os.environ.get("DBTAGS_LEGACY_BASE", "").strip()
 
 
 def _resolve_base():
@@ -39,7 +39,7 @@ def _resolve_base():
                  _PLUGIN_DIR):
         if os.path.isfile(os.path.join(cand, "manifest.json")):
             return cand
-    # author-machine fallback (empty in shipped builds)
+    # author opt-in dev path via $DBTAGS_LEGACY_BASE (empty by default)
     if _LEGACY_BASE and os.path.isfile(os.path.join(_LEGACY_BASE, "manifest.json")):
         return _LEGACY_BASE
     return _PLUGIN_DIR

@@ -8,3 +8,8 @@ fonts/*.ttf
 fonts/*.otf
 fonts/*.woff
 fonts/*.woff2
+
+# local-only working notes (author); not part of the public repo
+README_FOR_AI.md
+PERFORMANCE_AUDIT_README.md
+NUL

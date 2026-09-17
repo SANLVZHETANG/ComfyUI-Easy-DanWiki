@@ -5,13 +5,13 @@ Build the compact client index for the danbooru autocomplete extension (v3).
 READ-ONLY on all upstream sources. Outputs go straight into the deployed
 plugin data dir (see PLUGIN_DATA) + a build report in the hub dir.
 
-Input (read-only):
-  G:/翻译器/clear_dantag_wiki.jsonl   英文源 (name, post_count, body, other_names, ...)
-  G:/翻译器/out/translations.jsonl    全量中文 (name, name_cn, aliases_cn, body_cn)
-  SRC_BASE/manifest.json              示例图清单 (tag -> {small, large})
+Input (read-only; paths come from the DBTAGS_* env vars, see below):
+  $DBTAGS_WIKI_FILE       英文源 (name, post_count, body, other_names, ...)
+  $DBTAGS_ZH_DICT         全量中文 (name, name_cn, aliases_cn, body_cn)
+  $DBTAGS_SRC_BASE/manifest.json   示例图清单 (tag -> {small, large})
 
 Output:
-  E:/ComfyUI/custom_nodes/ComfyUI-Easy-DanWiki/web/js/data/tags_index.json
+  $DBTAGS_PLUGIN_DATA/tags_index.json
   <project root>/build_report.json
 
 Per-tag entry keys:
@@ -55,15 +55,33 @@ if sys.stdout and hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
                                    errors="replace")
 
-SRC_BASE = r"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags"
+# Author-machine inputs are read from env vars (kept out of the public repo).
+# Set these before running build_index.py:
+#   DBTAGS_SRC_BASE     crawled dataset dir (holds manifest.json / links_pending.jsonl)
+#   DBTAGS_PLUGIN_DATA  output dir for tags_index.json
+#   DBTAGS_WIKI_FILE    English wiki source (jsonl)
+#   DBTAGS_ZH_DICT      full Chinese translations (jsonl)
+SRC_BASE = os.environ.get("DBTAGS_SRC_BASE", "").strip()
 HUB_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
-PLUGIN_DATA = r"E:/ComfyUI/custom_nodes/ComfyUI-Easy-DanWiki/web/js/data"
-WIKI_FILE = r"G:/翻译器/clear_dantag_wiki.jsonl"        # 英文源（上游）
-ZH_DICT_FILE = r"G:/翻译器/out/translations.jsonl"      # 全量中文翻译（上游）
+PLUGIN_DATA = os.environ.get("DBTAGS_PLUGIN_DATA", "").strip()
+WIKI_FILE = os.environ.get("DBTAGS_WIKI_FILE", "").strip()        # 英文源（上游）
+ZH_DICT_FILE = os.environ.get("DBTAGS_ZH_DICT", "").strip()      # 全量中文翻译（上游）
 MANIFEST_FILE = os.path.join(SRC_BASE, "manifest.json")
 OUT_INDEX = os.path.join(PLUGIN_DATA, "tags_index.json")
 OUT_REPORT = os.path.join(HUB_BASE, "build_report.json")
 OUT_PENDING = os.path.join(SRC_BASE, "links_pending.jsonl")
+
+_missing_env = [n for n, v in (
+    ("DBTAGS_SRC_BASE", SRC_BASE),
+    ("DBTAGS_PLUGIN_DATA", PLUGIN_DATA),
+    ("DBTAGS_WIKI_FILE", WIKI_FILE),
+    ("DBTAGS_ZH_DICT", ZH_DICT_FILE),
+) if not v]
+if _missing_env:
+    print("FAIL: missing required env var(s): " + ", ".join(_missing_env))
+    print("      build_index.py is the author's offline dataset builder; set the "
+          "DBTAGS_* paths above (see header comment) before running.")
+    sys.exit(1)
 
 SUMMARY_LEN = 300       # 英文 summary 截断
 WIKI_ZH_LEN = 800       # 中文正文 wiki_zh 截断
@@ -240,7 +258,7 @@ def load_manifest():
 def load_zh_dict(path):
     """Load the full translation export -> {name: {zhtag, aliases_zh, wiki_zh}}.
 
-    Source schema (G:/翻译器/out/translations.jsonl):
+    Source schema ($DBTAGS_ZH_DICT jsonl):
       name / name_cn / aliases_cn / body_cn
     Field mapping (old pipeline names kept so the front-end needs no change):
       name_cn -> zhtag, aliases_cn -> aliases_zh, body_cn -> wiki_zh

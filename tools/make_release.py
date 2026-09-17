@@ -71,15 +71,12 @@ def fresh_copy(src, dst):
 
 
 def copy_server(dst):
-    """Ship dbtags_server.py with the author-machine fallback path blanked."""
+    """dbtags_server.py ships as-is: the legacy dev path now reads from
+    $DBTAGS_LEGACY_BASE (empty by default), so nothing author-machine-specific
+    remains to blank out."""
     src = os.path.join(SRC, "dbtags_server.py")
-    with open(src, "r", encoding="utf-8") as f:
-        text = f.read()
-    legacy = "_LEGACY_BASE = r\"C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags\""
-    cleaned = text.replace(legacy, "_LEGACY_BASE = \"\"")
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    with open(dst, "w", encoding="utf-8", newline="\n") as f:
-        f.write(cleaned)
+    shutil.copy2(src, dst)
     return os.path.getsize(dst)
 
 
