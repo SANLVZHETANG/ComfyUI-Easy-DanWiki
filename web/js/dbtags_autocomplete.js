@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.2.5";
+const VERSION = "v0.2.6";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -3504,13 +3504,14 @@ class Styler {
 		});
 		this.demoAC = new DBTagsAutoComplete(this.demoInput, { name: "styler-demo", type: "COMBO", options: {} });
 		const demo = $el("div.dbtags-ac-styler-lab", {}, [
-			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（下方/右侧面板设置即时生效）" }),
+			$el("div.dbtags-ac-styler-lab-title", { textContent: "实际试用：真实补全实例（面板设置见左栏，即时生效）" }),
 			this.demoInput,
 		]);
-		// PN2 fix: input row sits above the duo so list and panel share one
-		// top edge; demo and the compact settings card move below
+		// the duo: input row sits above it so list and panel share one top edge;
+		// every settings group (incl. wiki 面板) lives in the left column now,
+		// so the right column is purely the live preview / testbed
 		const duo = $el("div.dbtags-ac-styler-duo", {}, [labBody, this.panelWrap]);
-		this.prev.append(labHead, duo, demo, this.gPanel);
+		this.prev.append(labHead, duo, demo);
 		this.#syncPreviewPanel();
 		this.#refreshPreviewPanel();
 		onIndexReady(() => {

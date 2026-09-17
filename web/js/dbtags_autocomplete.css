@@ -582,7 +582,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 
 .dbtags-ac-styler-ctrl {
-	flex: 0 0 430px;
+	flex: 0 0 460px;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -943,11 +943,8 @@ html.dbtags-noblur .dbtags-ac-hud {
 	overflow-y: auto;
 }
 
-/* wiki settings card: compact block under the duo row */
-.dbtags-ac-styler-prev > .dbtags-ac-styler-group {
-	width: 300px;
-	max-width: 100%;
-}
+/* the duo preview: settings (incl. wiki 面板) all live in the left column now,
+   so the right column is pure preview; no special card-width override here */
 
 .dbtags-ac-preview-wrap {
 	position: relative;
