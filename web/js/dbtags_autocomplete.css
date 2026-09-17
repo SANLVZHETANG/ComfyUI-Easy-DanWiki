@@ -1143,7 +1143,10 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* ================= detail HUD window ================= */
 .dbtags-ac-hud {
 	position: fixed;
-	z-index: 9998;
+	/* above the 设置和外观 styler (10001) + "?" tip (10005) so the live HUD
+	   preview can sit over the settings window; still below the completion
+	   popup (10010) and the hover image card (10015) so those win when open */
+	z-index: 10006;
 	display: flex;
 	flex-direction: column;
 	/* resize:both needs overflow!=visible; the only real scroller is .dbtags-ac-hud-scroll */
@@ -1347,7 +1350,8 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* collapsed HUD: a themed ball parked where the window was */
 .dbtags-ac-hud-ball {
 	position: fixed;
-	z-index: 9998;
+	/* keep the collapsed ball on the same layer as the HUD window (over the styler) */
+	z-index: 10006;
 	width: 34px;
 	height: 34px;
 	display: flex;
