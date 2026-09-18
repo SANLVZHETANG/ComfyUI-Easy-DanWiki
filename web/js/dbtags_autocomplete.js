@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.3.0-alpha.1";
+const VERSION = "v0.3.1";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -940,8 +940,16 @@ class DBTagsAutoComplete {
 				this.#hide();
 			}, 150);
 		this._hDocDown = this.#onDocDown.bind(this);
+		// popup must follow ANY content change, not just physical keypresses:
+		// 'input' covers IME composition commits (Chinese/Japanese via key="Process"
+		// never reach #onKeyUp), paste, cut, drag-drop and autocorrect; the explicit
+		// compositionend guarantees the final committed text re-runs the search.
+		this._hInput = () => this.#scheduleUpdate();
+		this._hComposition = () => this.#scheduleUpdate();
 		this.el.addEventListener("keydown", this._hKeydown);
 		this.el.addEventListener("keyup", this._hKeyup);
+		this.el.addEventListener("input", this._hInput);
+		this.el.addEventListener("compositionend", this._hComposition);
 		this.el.addEventListener("click", this._hClick);
 		this.el.addEventListener("blur", this._hBlur);
 		document.addEventListener("mousedown", this._hDocDown);
@@ -958,6 +966,8 @@ class DBTagsAutoComplete {
 		this._previewEl = null;
 		this.el.removeEventListener("keydown", this._hKeydown);
 		this.el.removeEventListener("keyup", this._hKeyup);
+		this.el.removeEventListener("input", this._hInput);
+		this.el.removeEventListener("compositionend", this._hComposition);
 		this.el.removeEventListener("click", this._hClick);
 		this.el.removeEventListener("blur", this._hBlur);
 		document.removeEventListener("mousedown", this._hDocDown);
@@ -1091,7 +1101,7 @@ class DBTagsAutoComplete {
 	insertWikiTag(name, plusEl) {
 		const caret = this.el.selectionStart;
 		const before = this.el.value.substring(0, caret);
-		const m = before.match(/([^,;"|{}()\n]+)$/);
+		const m = before.match(/([^,;"|{}()\n。！？，、；：]+)$/);
 		let tokenStart = m ? caret - m[0].length : caret;
 		if (m) {
 			// skip leading whitespace of the token so we insert right before the word
@@ -1167,7 +1177,13 @@ class DBTagsAutoComplete {
 	#token() {
 		const before = this.helper.getBeforeCursor();
 		if (!before?.length) return null;
-		const m = before.match(/([^,;"|{}()\n]+)$/);
+		// Break only on tag separators + brackets/quotes and on FULL-WIDTH CJK
+		// sentence punctuation. ASCII ':' '.' '!' '?' are deliberately NOT
+		// separators: 200+ real emoticon/IP tags embed them (:d :3 >:(  ...  ._
+		// s.e.e.s e.g.o) and must stay typeable. A weight fragment like
+		// "tag:1.05" therefore remains a single token -> it simply matches nothing
+		// (no box), which is the correct outcome, without sacrificing those tags.
+		const m = before.match(/([^,;"|{}()\n。！？，、；：]+)$/);
 		if (!m) return null;
 		const raw = m[0].replace(/^\s+/, "");
 		if (!raw) return null;
@@ -1229,12 +1245,22 @@ class DBTagsAutoComplete {
 				break;
 			case "Tab":
 				e.preventDefault();
-				this.#insert();
+				if (this.selected && this.current.length) this.#insert();
+				else this.#hide(); // empty hint / nothing selected -> just dismiss
 				break;
 			case "Enter":
+				// Only commit when a candidate is actually selected. In the
+				// "无匹配 / 正文需输入完整短语" empty state selected===null, so the
+				// old code preventDefault()ed the newline then #insert() no-op'd ->
+				// the box stayed stuck and Enter did nothing. Here we instead dismiss
+				// the popup and let Enter fall through to insert a real newline.
 				if (!e.ctrlKey) {
-					e.preventDefault();
-					this.#insert();
+					if (this.selected && this.current.length) {
+						e.preventDefault();
+						this.#insert();
+					} else {
+						this.#hide();
+					}
 				}
 				break;
 		}
@@ -3913,19 +3939,50 @@ app.registerExtension({
 			const r = STRING.apply(this, arguments);
 			if (inputData[1]?.multiline) {
 				const config = inputData[1]?.["pysssss.autocomplete"];
-				if (config === false) return r;
 				const id = `${node.comfyClass}.${inputName}`;
-				if (SKIP_WIDGETS.has(id)) return r;
+				const skip = config === false || SKIP_WIDGETS.has(id);
 				const inputEl = r.widget.inputEl ?? r.widget.element;
 				if (inputEl) {
-					// widget rebuilt (resize/undo/copy): replace, never stack a
-					// second instance on the same input
-					r.widget._dbtagsAC?.destroy();
-					r.widget._dbtagsAC = new DBTagsAutoComplete(inputEl, r.widget);
+					if (skip) {
+						// stamp the opt-out on the ELEMENT too: the focus safety-net
+						// below runs for every textarea and must not resurrect a
+						// completion the author explicitly disabled (or a SKIP widget)
+						inputEl._dbtagsACOptOut = true;
+					} else {
+						// widget rebuilt (resize/undo/copy): replace, never stack a
+						// second instance on the same input
+						r.widget._dbtagsAC?.destroy();
+						const ac = new DBTagsAutoComplete(inputEl, r.widget);
+						r.widget._dbtagsAC = ac;
+						// element markers so the focus safety-net skips it (and can
+						// recover the widget handle if litegraph keeps the same element)
+						inputEl._dbtagsAC = ac;
+						inputEl._dbtagsWidget = r.widget;
+					}
 				}
 			}
 			return r;
 		};
+
+		// Universal attach safety-net. Subgraph / "merged CLIPTextEncode" nodes and
+		// many custom nodes build their prompt <textarea> OUTSIDE ComfyWidgets.STRING
+		// (or only lazily once expanded), so the precise factory hook above misses
+		// them. Attaching on first focus catches every node prompt textarea no matter
+		// how it was created, and self-heals when litegraph rebuilds the DOM. It is
+		// node-type agnostic, which is exactly the compatibility the factory path lacks.
+		document.addEventListener("focusin", (e) => {
+			const t = e.target;
+			if (!t || t.tagName !== "TEXTAREA" || t._dbtagsAC) return;
+			// respect an author's opt-out / SKIP that the factory already marked
+			if (t._dbtagsACOptOut) return;
+			// never power our own UI (the styler JSON import box is a <textarea>)
+			if (t.closest(".dbtags-ac-styler, .dbtags-ac-wrap, .dbtags-ac-hud, .dbtags-ac-hud-ball")) return;
+			try {
+				t._dbtagsAC = new DBTagsAutoComplete(t, t._dbtagsWidget || null);
+			} catch {
+				void 0; // a single bad node must not throw on every focus app-wide
+			}
+		}, true);
 
 		// Single entry point — every setting lives in the styler window
 		// (storage keys unchanged, existing values keep working).
