@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.3.1";
+const VERSION = "v0.4.1";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + VERSION;
@@ -22,9 +22,12 @@ const VERSION = "v0.3.1";
 
 const ID = "dbtags.autocomplete";
 const SKIP_WIDGETS = new Set(["ttN xyPlot.x_values", "ttN xyPlot.y_values"]);
-// cache-busting: rebuilds of tags_index.json REQUIRE bumping VERSION above
-// (the index URL rides on it), see README 构建/部署命令
-const INDEX_URL = new URL("./data/tags_index.json", import.meta.url).href + "?v=" + VERSION;
+// cache-busting: rebuilds of the category index files REQUIRE bumping VERSION
+// above (their URLs ride on it), see README 构建/部署命令
+const BASE_CAT_KEY = "0_general";           // always-loaded primary library
+const INDEX_URL = new URL("./data/0_general.json", import.meta.url).href + "?v=" + VERSION;
+const CATALOG_URL = new URL("./data/catalog.json", import.meta.url).href + "?v=" + VERSION;
+const catUrl = (file) => new URL("./data/" + file, import.meta.url).href + "?v=" + VERSION;
 const PYSSSSS_AUTO = "/extensions/comfyui-custom-scripts/js/common/autocomplete.js";
 const SEPARATOR = ", ";
 const BODY_IDLE_MS = 300; // typing pause before the (expensive) wiki-body scan runs
@@ -32,6 +35,60 @@ const DEBUG = new URLSearchParams(location.search).has("dbtags_debug") ||
 		localStorage.getItem(ID + ".debug") === "true";
 
 let index = null;
+/* ---- multi-category library: one file per category (0_general.json,
+   5_meta.json, ...), discovered from catalog.json and concatenated into the
+   single working `index` at load time. Every downstream consumer (search,
+   jump, HUD, image) keeps operating on one `index.tags` unchanged. ---- */
+const _catData = {};              // key -> tags[]
+const _catMeta = {};              // key -> {version,built_at,source_total}
+let _categories = [];            // catalog.json categories (dynamic discovery)
+const _catReadyCbs = [];
+function enabledCatKeys() {
+	const raw = Config.get("enabledCats", "");
+	const keys = new Set([BASE_CAT_KEY]);       // primary library can never be off
+	if (raw === "") {
+		for (const c of _categories) if (c.default) keys.add(c.key);
+	} else {
+		for (const k of raw.split(",").map((s) => s.trim()).filter(Boolean)) keys.add(k);
+		keys.add(BASE_CAT_KEY);
+	}
+	return Array.from(keys);
+}
+function composeIndex() {
+	const tags = [];
+	for (const k of enabledCatKeys()) {
+		const arr = _catData[k];
+		if (arr) for (let i = 0; i < arr.length; i++) tags.push(arr[i]);
+	}
+	const bm = _catMeta[BASE_CAT_KEY] || {};
+	index = {
+		version: bm.version || 3,
+		count: tags.length,
+		tags,
+		built_at: bm.built_at,
+		source_total: bm.source_total,
+	};
+	TAG_MAP = null; _mc = null; bodyDocs = null;   // rebuild derived views lazily
+}
+async function ensureCatLoaded(key) {
+	if (_catData[key] || key === BASE_CAT_KEY) return;
+	try {
+		const r = await fetch(catUrl(key + ".json"));
+		if (r.status !== 200) { dlog("C", `category '${key}' file missing`); return; }
+		const j = await r.json();
+		_catData[key] = j.tags;
+		_catMeta[key] = { version: j.version, built_at: j.built_at, count: j.count };
+		for (const cb of _catReadyCbs.splice(0)) { try { cb(); } catch { void 0; } }
+	} catch (e) {
+		console.error("[dbtags] category load failed:", key, e);
+	}
+}
+function toggleCat(key, on) {
+	const cur = new Set(enabledCatKeys());
+	if (on) cur.add(key); else cur.delete(key);
+	cur.add(BASE_CAT_KEY);
+	Config.set("enabledCats", Array.from(cur).join(","));
+}
 const _indexReadyCbs = [];
 function onIndexReady(cb) {
 	if (index) cb();
@@ -580,6 +637,7 @@ function buildMatchCache() {
 			zh0: typeof t.zhtag === "string" ? t.zhtag : "",
 			alzh: listField(t.aliases_zh),
 			zhl: listField(t.zh),
+			cat: t.cat | 0,
 		};
 	});
 }
@@ -1818,9 +1876,26 @@ async function loadIndex() {
 		console.error(`[dbtags] index fetch failed: ${resp.status} ${resp.statusText}`);
 		return false;
 	}
-	index = await resp.json();
+	const base = await resp.json();
+	_catData[BASE_CAT_KEY] = base.tags;
+	_catMeta[BASE_CAT_KEY] = { version: base.version, built_at: base.built_at,
+		source_total: base.source_total };
+	index = base;                       // provisional until extras compose in
 	Perf.indexMs = Math.round(performance.now() - t0);
-	dlog("C", `index loaded: ${index.count} tags, ${Perf.indexMs}ms`);
+	dlog("C", `primary library loaded: ${base.count} tags, ${Perf.indexMs}ms`);
+	// dynamic discovery (best-effort: a missing catalog just means general-only)
+	try {
+		const cr = await fetch(CATALOG_URL);
+		if (cr.status === 200) {
+			const cat = await cr.json();
+			_categories = Array.isArray(cat.categories) ? cat.categories : [];
+		}
+	} catch { void 0; }
+	// load every enabled extra category, then compose the working index
+	const extras = enabledCatKeys().filter((k) => k !== BASE_CAT_KEY);
+	await Promise.all(extras.map((k) => ensureCatLoaded(k)));
+	composeIndex();
+	dlog("C", `index composed: ${index.count} tags across [${enabledCatKeys().join(", ")}]`);
 	for (const cb of _indexReadyCbs.splice(0)) {
 		try {
 			cb();
@@ -1864,6 +1939,7 @@ const SETTING_DEFS = {
 	mode: "limit",
 	minPost: 50,
 	maxCount: 114,
+	enabledCats: "",   // CSV of category keys to load; "" = follow catalog.json defaults (通用 + meta)
 	imgMode: "large",
 	hudImgMode: "large",
 	navMode: "A",
@@ -3362,6 +3438,12 @@ class Styler {
 			if (this.dataHintEl?.isConnected) this.dataHintEl.textContent = this.#dataInfo();
 		});
 
+		const gCat = this.#group("标签类别");
+		this.gCat = gCat;
+		this.#renderCatGroup();
+		onIndexReady(() => this.#renderCatGroup());
+		_catReadyCbs.push(() => { if (this.gCat?.isConnected) this.#renderCatGroup(); });
+
 		const gPanel = this.#group("wiki 面板");
 		this.gPanel = gPanel;
 		const modeNow = () =>
@@ -3864,6 +3946,40 @@ class Styler {
 		let mn = Infinity;
 		for (const t of index.tags) if (t.post_count < mn) mn = t.post_count;
 		return `插件 ${VERSION} · 词库 v${index.version} · ${index.count} 标签 · 源站热度下限 ${mn} · 构建于 ${index.built_at}`;
+	}
+
+	/* 标签类别：从 catalog.json 动态生成的分类库开关。勾选=把该分类索引文件
+	   并入当前工作词库（检索/跳转/HUD/图同时覆盖），取消=移出。通用库恒开。 */
+	#renderCatGroup() {
+		if (!this.gCat) return;
+		this.gCat.querySelectorAll(".dbtags-ac-styler-row").forEach((r) => r.remove());
+		const cats = (_categories && _categories.length)
+			? _categories
+			: [{ key: BASE_CAT_KEY, label: "通用", count: index?.count || 0 }];
+		const on = new Set(enabledCatKeys());
+		for (const c of cats) {
+			const isBase = c.key === BASE_CAT_KEY;
+			const loaded = _catData[c.key];
+			const cnt = loaded ? loaded.length : (c.count || 0);
+			const lab = this.#lab(
+				`${c.label || c.key}（${cnt.toLocaleString()}）`, "",
+				isBase ? "核心通用词库，始终启用" : "勾选后并入当前词库：参与检索、跳转与示例图");
+			const cb = $el("input", { type: "checkbox" });
+			cb.checked = isBase || on.has(c.key);
+			cb.disabled = isBase;
+			cb.style.cursor = isBase ? "default" : "pointer";
+			cb.onchange = async () => {
+				if (cb.checked && !_catData[c.key]) await ensureCatLoaded(c.key);
+				toggleCat(c.key, cb.checked);
+				composeIndex();
+				try { applyConfig(); } catch (e) { console.error(e); }
+				refreshAllInstances();
+				try { this.#labRefresh(); } catch (e) { void 0; }
+				if (this.dataHintEl?.isConnected) this.dataHintEl.textContent = this.#dataInfo();
+				this.#renderCatGroup();
+			};
+			this.gCat.append($el("div.dbtags-ac-styler-row", {}, [lab, cb]));
+		}
 	}
 
 	#buildPickers() {

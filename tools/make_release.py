@@ -13,7 +13,8 @@ Layout (nothing is compressed):
       LICENSE-fonts.txt
       web/js/dbtags_autocomplete.js
       web/js/dbtags_autocomplete.css
-      web/js/data/tags_index.json     word bank (always included)
+      web/js/data/0_general.json      通用词库 (always included)
+      web/js/data/5_meta.json …       其它分类词库（各自独立，含 catalog.json 供前端发现）
       fonts/                          README.txt + 2 bundled OFL fonts
       dataset/manifest.json           image whitelist (always included)
     image-pack-small/                 optional: unpack over custom_nodes/
@@ -35,7 +36,7 @@ import sys
 
 HUB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = HUB
-DATA = os.path.join(HUB, "..", "danbooru-general-tags")
+DATA = os.environ.get("DBTAGS_SRC_BASE", "").strip() or os.path.join(HUB, "..", "sub-ComfyUI-Easy-DanWiki-爬图像")
 DATA = os.path.abspath(DATA)
 REL = os.path.join(HUB, "release")
 
@@ -142,8 +143,13 @@ def main():
             continue
         s = os.path.join(SRC, rel)
         fresh_copy(s, os.path.join(CORE, rel))
-    fresh_copy(os.path.join(SRC, "web", "js", "data", "tags_index.json"),
-               os.path.join(CORE, "web", "js", "data", "tags_index.json"))
+    # category index files (0_general.json, 5_meta.json, ...) + catalog.json:
+    # ship every *.json in the data dir so new categories ride along untouched
+    data_src = os.path.join(SRC, "web", "js", "data")
+    for fn in sorted(os.listdir(data_src)):
+        if fn.endswith(".json"):
+            fresh_copy(os.path.join(data_src, fn),
+                       os.path.join(CORE, "web", "js", "data", fn))
     fresh_copy(manifest_path, os.path.join(CORE, "dataset", MANIFEST_REL))
     hub_license = os.path.join(HUB, "LICENSE")
     if os.path.isfile(hub_license):
@@ -195,7 +201,7 @@ TOP_README = """# ComfyUI-Easy-DanWiki — Danbooru 中英双语标签补全 发
 ## 1. ComfyUI-Easy-DanWiki/ —— 必须（核心插件）
 解压后把 `ComfyUI-Easy-DanWiki` 整个文件夹放进 ComfyUI 的
 `custom_nodes/` 目录，重启 ComfyUI 即生效。
-> 本包已包含词库（web/js/data/tags_index.json，3 万余标签含中英文 wiki）
+> 本包已包含词库（web/js/data/0_general.json 通用 + 5_meta.json 等分类，含中英文 wiki）
 > 与示例图清单（dataset/manifest.json），**不含图片本体**。
 > 界面字体已内置（Glass_TTY_VT220 / MapleMono NF CN Medium，SIL OFL 授权）。
 
@@ -320,7 +326,7 @@ ComfyUI-Easy-DanWiki/
 ├─ __init__.py                  插件注册（纯前端扩展，不提供节点）
 ├─ dbtags_server.py             本地接口：供图 / 字体 / 状态
 ├─ web/js/…                     补全前端（js + css）
-├─ web/js/data/tags_index.json  词库 v3（30,442 条，约 25MB）
+├─ web/js/data/                 分类词库 0_general.json(通用30,442) + 5_meta.json(539) + catalog.json(前端发现)
 ├─ fonts/                       内置界面字体（SIL OFL 1.1）
 ├─ dataset/manifest.json        示例图白名单（tag → 图片路径）
 └─ dataset/tag_images(_large)/  图片本体（可选图包解压后出现）

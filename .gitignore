@@ -13,3 +13,8 @@ fonts/*.woff2
 README_FOR_AI.md
 PERFORMANCE_AUDIT_README.md
 NUL
+
+# build/diagnostic artifacts (offline dataset builder output side-effects)
+build_report.json
+links_pending_*.jsonl
+*.bak

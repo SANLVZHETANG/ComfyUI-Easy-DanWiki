@@ -11,7 +11,7 @@ Input (read-only; paths come from the DBTAGS_* env vars, see below):
   $DBTAGS_SRC_BASE/manifest.json   示例图清单 (tag -> {small, large})
 
 Output:
-  $DBTAGS_PLUGIN_DATA/tags_index.json
+  $DBTAGS_PLUGIN_DATA/0_general.json   (+ one file per category, 5_meta.json …)
   <project root>/build_report.json
 
 Per-tag entry keys:
@@ -58,7 +58,7 @@ if sys.stdout and hasattr(sys.stdout, "buffer"):
 # Author-machine inputs are read from env vars (kept out of the public repo).
 # Set these before running build_index.py:
 #   DBTAGS_SRC_BASE     crawled dataset dir (holds manifest.json / links_pending.jsonl)
-#   DBTAGS_PLUGIN_DATA  output dir for tags_index.json
+#   DBTAGS_PLUGIN_DATA  output dir for the category index files
 #   DBTAGS_WIKI_FILE    English wiki source (jsonl)
 #   DBTAGS_ZH_DICT      full Chinese translations (jsonl)
 SRC_BASE = os.environ.get("DBTAGS_SRC_BASE", "").strip()
@@ -66,21 +66,29 @@ HUB_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # projec
 PLUGIN_DATA = os.environ.get("DBTAGS_PLUGIN_DATA", "").strip()
 WIKI_FILE = os.environ.get("DBTAGS_WIKI_FILE", "").strip()        # 英文源（上游）
 ZH_DICT_FILE = os.environ.get("DBTAGS_ZH_DICT", "").strip()      # 全量中文翻译（上游）
+CAT = int(os.environ.get("DBTAGS_CAT", "0") or 0)                # 本宇宙分类: general=0, meta=5
 MANIFEST_FILE = os.path.join(SRC_BASE, "manifest.json")
-OUT_INDEX = os.path.join(PLUGIN_DATA, "tags_index.json")
+# multi-category: each category is a SEPARATE output file (0_general.json,
+# 5_meta.json, ...). A "source" = {name, cat, wiki, zh, manifest, out}.
+SOURCES_FILE = os.environ.get("DBTAGS_SOURCES", "").strip()
+OUT_INDEX = os.path.join(PLUGIN_DATA, "0_general.json")
 OUT_REPORT = os.path.join(HUB_BASE, "build_report.json")
 OUT_PENDING = os.path.join(SRC_BASE, "links_pending.jsonl")
 
-_missing_env = [n for n, v in (
-    ("DBTAGS_SRC_BASE", SRC_BASE),
-    ("DBTAGS_PLUGIN_DATA", PLUGIN_DATA),
-    ("DBTAGS_WIKI_FILE", WIKI_FILE),
-    ("DBTAGS_ZH_DICT", ZH_DICT_FILE),
-) if not v]
-if _missing_env:
-    print("FAIL: missing required env var(s): " + ", ".join(_missing_env))
+# Fallback single source from the legacy per-run env vars.
+def _legacy_source():
+    return {"name": "general", "cat": CAT, "wiki": WIKI_FILE,
+            "zh": ZH_DICT_FILE, "manifest": MANIFEST_FILE,
+            "out": os.path.basename(OUT_INDEX)}
+
+if not PLUGIN_DATA:
+    print("FAIL: missing required env var: DBTAGS_PLUGIN_DATA")
     print("      build_index.py is the author's offline dataset builder; set the "
           "DBTAGS_* paths above (see header comment) before running.")
+    sys.exit(1)
+if not SOURCES_FILE and not (SRC_BASE and WIKI_FILE and ZH_DICT_FILE):
+    print("FAIL: set DBTAGS_SOURCES (multi-category json) or the legacy "
+          "DBTAGS_SRC_BASE/DBTAGS_WIKI_FILE/DBTAGS_ZH_DICT triple.")
     sys.exit(1)
 
 SUMMARY_LEN = 300       # 英文 summary 截断
@@ -227,9 +235,9 @@ def extract_links(body, name_set, pending, source_name):
     return links
 
 
-def load_rows():
+def load_rows(wiki_file):
     rows = []
-    with open(WIKI_FILE, "r", encoding="utf-8") as f:
+    with open(wiki_file, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -241,11 +249,11 @@ def load_rows():
     return rows
 
 
-def load_manifest():
-    if not os.path.exists(MANIFEST_FILE):
+def load_manifest(manifest_file):
+    if not manifest_file or not os.path.exists(manifest_file):
         return {}
     try:
-        with open(MANIFEST_FILE, "r", encoding="utf-8") as f:
+        with open(manifest_file, "r", encoding="utf-8") as f:
             m = json.load(f)
         if not isinstance(m, dict):
             return {}
@@ -292,10 +300,15 @@ def load_zh_dict(path):
     return out
 
 
-def build(limit, out_path, zh_dict_path=None):
+def build(limit, out_path, zh_dict_path=None, wiki_file=None,
+          manifest_file=None, cat=None, name_set=None, out_pending=None):
     start = time.time()
-    rows = load_rows()
-    manifest = load_manifest()
+    wiki_file = wiki_file or WIKI_FILE
+    manifest_file = manifest_file or MANIFEST_FILE
+    cat = CAT if cat is None else cat
+    out_pending = out_pending or OUT_PENDING
+    rows = load_rows(wiki_file)
+    manifest = load_manifest(manifest_file)
     zh_dict = load_zh_dict(zh_dict_path)
     if zh_dict:
         print("zh-dict merged: %d tags" % len(zh_dict), flush=True)
@@ -316,7 +329,11 @@ def build(limit, out_path, zh_dict_path=None):
     n_zhwiki_trunc = 0
     n_py = 0
     pending = {}
-    name_set = {r.get("name") for r in rows if r.get("name")}
+    # link targets resolve against the UNION of every category's names, so a
+    # general body's [[highres]] and a meta body's [[1girl]] both become
+    # clickable chips -> bidirectional jump (name_set is precomputed by main()).
+    if name_set is None:
+        name_set = {r.get("name") for r in rows if r.get("name")}
     for r in rows:
         name = r.get("name", "")
         zh = extract_zh(r.get("other_names"))
@@ -340,6 +357,7 @@ def build(limit, out_path, zh_dict_path=None):
                 n_img += 1
         rec = {
             "name": name,
+            "cat": cat,
             "post_count": r.get("post_count") or 0,
             "zh": zh,
             "aliases": aliases,
@@ -372,20 +390,23 @@ def build(limit, out_path, zh_dict_path=None):
 
     n_pending_links = sum(p["count"] for p in pending.values())
     if pending:
-        with open(OUT_PENDING, "w", encoding="utf-8") as f:
-            for p in sorted(pending.values(), key=lambda x: -x["count"]):
-                f.write(json.dumps(p, ensure_ascii=False) + "\n")
+        try:
+            with open(out_pending, "w", encoding="utf-8") as f:
+                for p in sorted(pending.values(), key=lambda x: -x["count"]):
+                    f.write(json.dumps(p, ensure_ascii=False) + "\n")
+        except Exception as e:
+            verbose("pending write failed: %r" % e)
 
     index = {
         "version": VERSION,
         "built_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "source_total": len(rows) if not limit else _count_all(),
+        "source_total": len(rows) if not limit else _count_all(wiki_file),
         "limit": limit,
         "count": len(tags),
         "tags": tags,
     }
     if limit:
-        index["source_total"] = _count_all()
+        index["source_total"] = _count_all(wiki_file)
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     tmp = out_path + ".tmp"
@@ -400,8 +421,9 @@ def build(limit, out_path, zh_dict_path=None):
         "timestamp": index["built_at"],
         "args": {"limit": limit, "verbose": _VERBOSE,
                  "zh_dict": zh_dict_path or None},
-        "source": {"wiki_file": WIKI_FILE, "manifest_file": MANIFEST_FILE,
+        "source": {"wiki_file": wiki_file, "manifest_file": manifest_file,
                    "zh_dict": zh_dict_path or None},
+        "cat": cat,
         "source_total": index["source_total"],
         "built_count": len(tags),
         "with_chinese_alias": n_zh,
@@ -421,10 +443,7 @@ def build(limit, out_path, zh_dict_path=None):
         "elapsed_s": round(elapsed, 2),
         "samples": tags[:3],
     }
-    with open(OUT_REPORT, "w", encoding="utf-8") as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
-
-    print("=== build report ===")
+    print("=== build report (%s) ===" % out_path)
     for k in ("source_total", "built_count", "with_chinese_alias",
               "with_any_alias", "with_image", "with_zhtag", "with_zhwiki",
               "with_zhwiki_truncated", "with_py",
@@ -434,15 +453,15 @@ def build(limit, out_path, zh_dict_path=None):
               "output_bytes", "elapsed_s"):
         print("  %-18s %s" % (k, report[k]))
     print("  output: %s" % out_path)
-    print("  report: %s" % OUT_REPORT)
     if _VERBOSE:
         print("=== samples ===")
         print(json.dumps(report["samples"], ensure_ascii=False, indent=2))
+    return report
 
 
-def _count_all():
+def _count_all(wiki_file):
     n = 0
-    with open(WIKI_FILE, "r", encoding="utf-8") as f:
+    with open(wiki_file, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 n += 1
@@ -522,22 +541,101 @@ def verify(out_path):
     return 0
 
 
+def _load_sources():
+    """Category sources to build. Multi-category via $DBTAGS_SOURCES (a JSON
+    file: {"sources":[{name,cat,wiki,zh,manifest,out},...]} or a bare list).
+    Falls back to a single legacy source from the per-run env vars."""
+    if SOURCES_FILE:
+        with open(SOURCES_FILE, "r", encoding="utf-8") as f:
+            spec = json.load(f)
+        srcs = spec.get("sources") if isinstance(spec, dict) else spec
+        return srcs or []
+    return [_legacy_source()]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--limit", type=int, default=0,
                     help="only build the first N tags by post_count (0=all)")
     ap.add_argument("--verbose", action="store_true")
-    ap.add_argument("--zh-dict", default=ZH_DICT_FILE,
-                    help="translation jsonl to merge (default: %(default)s)")
+    ap.add_argument("--zh-dict", default=None,
+                    help="legacy single-source zh override (ignored with "
+                         "DBTAGS_SOURCES; each source carries its own zh)")
     ap.add_argument("--out-dir", default=None,
-                    help="override output dir for the index file")
+                    help="override output dir (DBTAGS_PLUGIN_DATA) for the "
+                         "category index files")
     args = ap.parse_args()
-    global _VERBOSE, OUT_INDEX
+    global _VERBOSE, PLUGIN_DATA
     _VERBOSE = args.verbose
     if args.out_dir:
-        OUT_INDEX = os.path.join(args.out_dir, "tags_index.json")
-    build(args.limit, OUT_INDEX, zh_dict_path=args.zh_dict)
-    return verify(OUT_INDEX)
+        PLUGIN_DATA = os.path.abspath(args.out_dir)
+    if not PLUGIN_DATA:
+        print("FAIL: no output dir (set DBTAGS_PLUGIN_DATA or --out-dir)")
+        return 2
+
+    srcs = _load_sources()
+
+    # pass 1: preload every category and form the UNION name-set so link
+    # extraction in every output can resolve cross-category [[targets]].
+    union = set()
+    for s in srcs:
+        for r in load_rows(s["wiki"]):
+            nm = r.get("name")
+            if nm:
+                union.add(nm)
+    log("union name-set across %d categories: %d tags" % (len(srcs), len(union)))
+
+    reports = []
+    rc = 0
+    for s in srcs:
+        out_path = os.path.join(PLUGIN_DATA, s["out"])
+        stem = os.path.splitext(s["out"])[0]
+        zh = args.zh_dict or s.get("zh")
+        log("\n### building %s -> %s (cat=%s) ###"
+            % (s.get("name", s["out"]), s["out"], s.get("cat", 0)))
+        rep = build(args.limit, out_path, zh_dict_path=zh,
+                    wiki_file=s["wiki"], manifest_file=s.get("manifest"),
+                    cat=s.get("cat", 0), name_set=union,
+                    out_pending=os.path.join(HUB_BASE, "links_pending_%s.jsonl" % stem))
+        rep["name"] = s.get("name", s["out"])
+        reports.append(rep)
+        if verify(out_path) != 0:
+            rc = 1
+
+    # catalog.json: the frontend discovers which category files exist here and
+    # builds the "标签类别" toggles from it (dynamic discovery). `default` marks
+    # categories loaded out-of-the-box (general always; extras opt-in).
+    catalog = {
+        "version": VERSION,
+        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "categories": [{
+            "file": os.path.basename(r["output"]),
+            "key": os.path.splitext(os.path.basename(r["output"]))[0],
+            "label": s.get("label") or s.get("name") or r["name"],
+            "cat": r["cat"],
+            "count": r["built_count"],
+            "default": bool(s.get("default", r["cat"] == 0)),
+        } for s, r in zip(srcs, reports)],
+    }
+    with open(os.path.join(PLUGIN_DATA, "catalog.json"), "w", encoding="utf-8") as f:
+        json.dump(catalog, f, ensure_ascii=False, separators=(",", ":"))
+    log("catalog.json: " + ", ".join(
+        "%s(%s,%d%s)" % (c["key"], c["label"], c["count"],
+                         ",default" if c["default"] else "")
+        for c in catalog["categories"]))
+
+    with open(OUT_REPORT, "w", encoding="utf-8") as f:
+        json.dump({"union_names": len(union),
+                   "categories": [{"name": r["name"], "cat": r["cat"],
+                                   "out": r["output"], "count": r["built_count"],
+                                   "links_valid": r["links_valid"],
+                                   "output_bytes": r["output_bytes"]}
+                                  for r in reports],
+                   "sources": reports},
+                  f, ensure_ascii=False, indent=2)
+    log("\nwrote %d category index file(s) to %s" % (len(reports), PLUGIN_DATA))
+    log("aggregated report: %s" % OUT_REPORT)
+    return rc
 
 
 if __name__ == "__main__":

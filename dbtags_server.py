@@ -47,7 +47,14 @@ def _resolve_base():
 
 BASE = _resolve_base()
 MANIFEST_FILE = os.path.join(BASE, "manifest.json")
-INDEX_FILE = os.path.join(_PLUGIN_DIR, "web", "js", "data", "tags_index.json")
+DATA_DIR = os.path.join(_PLUGIN_DIR, "web", "js", "data")
+# multi-category: 0_general.json is the primary library; other categories are
+# separate files (5_meta.json, ...) enumerated by catalog.json. Legacy single
+# file tags_index.json is still read for /status if the new name is absent.
+INDEX_FILE = os.path.join(DATA_DIR, "0_general.json")
+if not os.path.exists(INDEX_FILE):
+    INDEX_FILE = os.path.join(DATA_DIR, "tags_index.json")
+CATALOG_FILE = os.path.join(DATA_DIR, "catalog.json")
 FONT_DIR = os.path.join(_PLUGIN_DIR, "fonts")
 FONT_EXTS = (".ttf", ".otf", ".woff", ".woff2")
 FONT_MIME = {
@@ -113,6 +120,19 @@ def _load_index_meta():
     return _index_meta
 
 
+def _load_catalog():
+    """Category list from build-emitted catalog.json; falls back to a bare
+    'general' entry so /status never breaks before a multi-category rebuild."""
+    if os.path.exists(CATALOG_FILE):
+        try:
+            with open(CATALOG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f).get("categories") or []
+        except Exception as e:
+            _log("catalog load failed: %r" % e)
+    return [{"key": "0_general", "file": "0_general.json", "label": "通用",
+             "cat": 0, "default": True}]
+
+
 @PromptServer.instance.routes.get("/dbtags/status")
 async def get_status(request):
     manifest = _load_manifest()
@@ -123,6 +143,7 @@ async def get_status(request):
                                   time.localtime(_started)),
         "debug": DEBUG,
         "index": meta,
+        "categories": _load_catalog(),
         "manifest_entries": len(manifest),
         "fonts": _list_fonts(),
         "dataset_dir": BASE,
