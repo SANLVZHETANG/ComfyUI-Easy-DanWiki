@@ -1118,6 +1118,25 @@ html.dbtags-noblur .dbtags-ac-hud {
 	max-height: 72vh;
 }
 
+/* 悬浮窗图片上的“查看大图”浮标：鼠标移到 HUD 图上即时出现，
+   停留片刻自动弹出大图卡。pointer-events:none 以免干扰 hover 判定。 */
+.dbtags-ac-hud-imghint {
+	position: fixed;
+	z-index: 10014;
+	transform: translateX(-50%);
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 12px;
+	line-height: 1.4;
+	white-space: nowrap;
+	pointer-events: none;
+	user-select: none;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+	backdrop-filter: blur(2px);
+}
+
 .dbtags-ac-styler-perf {
 	margin-top: 2px;
 }

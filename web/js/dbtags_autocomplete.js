@@ -10,24 +10,31 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.1";
+const VERSION = "v0.4.2";  // display only (status line); tag git with this
+/* Split cache keys: DATA_V rides the category index JSONs + image URLs,
+ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
+store actually changes (rebuild -> users re-fetch ~25MB by design); bump
+ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
+(ComfyUI serves this file itself with ETag/Last-Modified). */
+const DATA_V = "v0.4.1";
+const ASSET_V = "a2";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
-	url.search = "?v=" + VERSION;
+	url.search = "?v=" + ASSET_V;
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: url });
 	const themeUrl = new URL("./dbtags_themes.css", import.meta.url);
-	themeUrl.search = "?v=" + VERSION;
+	themeUrl.search = "?v=" + ASSET_V;
 	$el("link", { parent: document.head, rel: "stylesheet", type: "text/css", href: themeUrl });
 }
 
 const ID = "dbtags.autocomplete";
 const SKIP_WIDGETS = new Set(["ttN xyPlot.x_values", "ttN xyPlot.y_values"]);
-// cache-busting: rebuilds of the category index files REQUIRE bumping VERSION
-// above (their URLs ride on it), see README 构建/部署命令
+// cache-busting: rebuilds of the category index files REQUIRE bumping DATA_V
+// (their URLs ride on it), see README 构建/部署命令
 const BASE_CAT_KEY = "0_general";           // always-loaded primary library
-const INDEX_URL = new URL("./data/0_general.json", import.meta.url).href + "?v=" + VERSION;
-const CATALOG_URL = new URL("./data/catalog.json", import.meta.url).href + "?v=" + VERSION;
-const catUrl = (file) => new URL("./data/" + file, import.meta.url).href + "?v=" + VERSION;
+const INDEX_URL = new URL("./data/0_general.json", import.meta.url).href + "?v=" + DATA_V;
+const CATALOG_URL = new URL("./data/catalog.json", import.meta.url).href + "?v=" + DATA_V;
+const catUrl = (file) => new URL("./data/" + file, import.meta.url).href + "?v=" + DATA_V;
 const PYSSSSS_AUTO = "/extensions/comfyui-custom-scripts/js/common/autocomplete.js";
 const SEPARATOR = ", ";
 const BODY_IDLE_MS = 300; // typing pause before the (expensive) wiki-body scan runs
@@ -1220,7 +1227,7 @@ class DBTagsAutoComplete {
 			return;
 		}
 		const mode = Config.get("imgMode", "large");
-		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=`;
+		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=`;
 		const setSrc = (size) => {
 			p.img.onload = () => { p.img.style.display = ""; };
 			p.img.onerror = () => { p.img.style.display = "none"; };
@@ -1504,7 +1511,7 @@ class DBTagsAutoComplete {
 
 	#openImageCard(tag, anchor) {
 		this.#closeImageCard();
-		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=large`;
+		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=large`;
 		const img = $el("img.dbtags-ac-imgcard-img", { src: url });
 		img.onerror = () => this.#closeImageCard();
 		const card = $el("div.dbtags-ac-imgcard", {}, [
@@ -1869,8 +1876,8 @@ function installGuard() {
 
 async function loadIndex() {
 	const t0 = performance.now();
-	// cache:"default" + ?v=VERSION -> repeat loads hit the HTTP cache instead
-	// of re-transferring ~25MB; a VERSION bump is the invalidation switch
+	// cache:"default" + ?v=DATA_V -> repeat loads hit the HTTP cache instead
+	// of re-transferring ~25MB; a DATA_V bump is the invalidation switch
 	const resp = await fetch(INDEX_URL);
 	if (resp.status !== 200) {
 		console.error(`[dbtags] index fetch failed: ${resp.status} ${resp.statusText}`);
@@ -2626,6 +2633,9 @@ class Hud {
 
 	destroy() {
 		this.#closeImgCard();
+		this._hideImgHint();
+		this._imgHint?.remove();
+		this._imgHint = null;
 		if (this._ro) this._ro.disconnect();
 		this.el.remove();
 		this.ball.remove();
@@ -2633,6 +2643,7 @@ class Hud {
 
 	#loadImage(tag) {
 		this.#closeImgCard();
+		this._hideImgHint();
 		if (!tag.images || !tag.images.length) {
 			this.img.onload = this.img.onerror = null;
 			this.img.onmouseenter = this.img.onmouseleave = this.img.onclick = null;
@@ -2643,7 +2654,7 @@ class Hud {
 			return;
 		}
 		this._imgShown = true;
-		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=`;
+		const base = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=`;
 		const small = Config.get("hudImgMode", Config.get("imgMode", "large")) === "small";
 		const order = small ? ["small", "large"] : ["large", "small"];
 		const my = ++this._imgSeq;
@@ -2669,13 +2680,13 @@ class Hud {
 		tryNext();
 		this.img.classList.toggle("dbtags-ac-hud-img--thumb", small);
 		this._imgCardTag = tag;
-		if (small) {
-			this.img.onmouseenter = () => this.#imgHoverIn();
-			this.img.onmouseleave = () => this.#imgHoverOut();
-			this.img.onclick = () => this.#openImgCard();
-		} else {
-			this.img.onmouseenter = this.img.onmouseleave = this.img.onclick = null;
-		}
+		// hover-to-large now works in BOTH modes: the HUD window often shrinks the
+		// image (especially 大图模式), so a dwell opens the same popup card the
+		// wiki panel uses. 无图在上面已 early-return;只有小图/只有大图时
+		// /dbtags/image 会在 large<->small 间自动回退,悬浮大图卡总能出图。
+		this.img.onmouseenter = () => this.#imgHoverIn();
+		this.img.onmouseleave = () => this.#imgHoverOut();
+		this.img.onclick = () => this.#openImgCard();
 		// (re)apply the current 图片优先 layout for THIS tag deterministically:
 		// without this the image-priority styles only appeared after an unrelated
 		// resize/toggle, so it flickered between tags (the "不稳定" bug)
@@ -2685,14 +2696,17 @@ class Hud {
 	#imgHoverIn() {
 		clearTimeout(this._imgCloseTimer);
 		this._imgCloseTimer = null;
-		if (this._imgHoverTimer || this._imgCard) return;
+		if (this._imgCard) return;              // 大图卡已弹出,提示让位于卡片
+		this._showImgHint();                    // 鼠标一移上去立刻显示“查看大图”
+		if (this._imgHoverTimer) return;
 		this._imgHoverTimer = setTimeout(() => {
 			this._imgHoverTimer = null;
 			this.#openImgCard();
-		}, 180);
+		}, 200);                                 // 停留约 0.2 秒自动弹出大图卡
 	}
 
 	#imgHoverOut() {
+		this._hideImgHint();
 		clearTimeout(this._imgHoverTimer);
 		this._imgHoverTimer = null;
 		if (this._imgCard && !this._imgCloseTimer) {
@@ -2703,11 +2717,29 @@ class Hud {
 		}
 	}
 
+	/* 悬浮窗图片上的“查看大图”浮标（body 定位，随图片矩形放置于图内底部中央） */
+	_showImgHint() {
+		if (!this.img || this.img.style.display === "none") return;
+		if (!this._imgHint) {
+			this._imgHint = $el("div.dbtags-ac-hud-imghint", { textContent: "查看大图" });
+			document.body.append(this._imgHint);
+		}
+		const r = this.img.getBoundingClientRect();
+		this._imgHint.style.left = (r.left + r.width / 2) + "px";
+		this._imgHint.style.top = Math.max(8, r.bottom - 30) + "px";
+		this._imgHint.style.display = "";
+	}
+
+	_hideImgHint() {
+		if (this._imgHint) this._imgHint.style.display = "none";
+	}
+
 	#openImgCard() {
 		const tag = this._imgCardTag;
 		if (!tag) return;
+		this._hideImgHint();
 		this.#closeImgCard();
-		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${VERSION}&size=large`;
+		const url = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=large`;
 		const big = $el("img.dbtags-ac-imgcard-img", { src: url });
 		big.onerror = () => this.#closeImgCard();
 		const card = $el("div.dbtags-ac-imgcard", {}, [
@@ -2840,7 +2872,7 @@ const HELP = {
 	hudOnType: "确认输入一个候选词后，悬浮窗怎么处理：\n清空详细页 —— 清掉标签与预览，悬浮窗变成空白页。\n保留当前详细页 —— 停留在刚输入的那个词的释义页，其它已固定标签不动。",
 	hudClose: "点击 × 关闭悬浮窗时：变为悬浮球＝缩成一颗小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
 	hudDblCloseAll: "双击任意标签页 = 关闭所有标签页、悬浮窗清空成空白页；关 = 双击只是切换标签。",
-	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图，鼠标悬浮到大图上再看大图卡。",
+	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图。两种模式下鼠标移到图上会立即显示「查看大图」，停留约 0.2 秒自动弹出原尺寸大图卡（移开或 Esc 关闭，点击图也可打开）。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
 };
