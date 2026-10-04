@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "name": "general", "cat": 0, "label": "通用", "default": true,
+      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags/clear_dantag_wiki.jsonl",
+      "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-翻译/out/translations.jsonl",
+      "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
+      "out": "0_general.json"
+    },
+    {
+      "name": "meta", "cat": 5, "label": "meta(元数据)", "default": true,
+      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/sub-Comfyui-Easy-DanWiki-workflowtest/clear_wiki_ge50.jsonl",
+      "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-Comfyui-Easy-DanWiki-workflowtest/pipeline/meta_translations_ge50.jsonl",
+      "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
+      "out": "5_meta.json"
+    },
+    {
+      "name": "character", "cat": 4, "label": "character(角色)", "default": true,
+      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/all dantag/wiki_checked_cat4_gt50.jsonl",
+      "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-llm命名/out/char_zh.jsonl",
+      "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
+      "out": "4_character.json"
+    }
+  ]
+}

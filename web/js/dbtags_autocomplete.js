@@ -10,13 +10,13 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.2";  // display only (status line); tag git with this
+const VERSION = "v0.4.3";  // display only (status line); tag git with this
 /* Split cache keys: DATA_V rides the category index JSONs + image URLs,
 ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
-const DATA_V = "v0.4.1";
+const DATA_V = "v0.4.3";
 const ASSET_V = "a2";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
