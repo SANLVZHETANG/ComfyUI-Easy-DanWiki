@@ -38,6 +38,7 @@ Usage:
 """
 
 import argparse
+import html
 import io
 import json
 import os
@@ -133,6 +134,34 @@ def verbose(msg):
         print("[verbose] " + msg, flush=True)
 
 
+# ---- display cleaning (2026-10-05): strip wiki markup the front-end cannot
+# render. [[...]] links stay verbatim (renderWikiBody makes them clickable).
+_GALLERY_LINE = re.compile(r"^\s*(?:[*!]\s*)*(?:!post\s+#|!asset\s+#|\[/pools)", re.I)
+_HSEC = re.compile(r"(?:^|(?<=\s))h[23456]\.\s*", re.I)
+_TEMPLATE = re.compile(r"\{\{([^{}|]*)((?:\|[^{}]*?)*?)\}\}")
+_BB = re.compile(r"\[\*\]|(?<!\[)\[/?\s*(?:b|i|u|s|sup|sub|quote|spoiler|code|list|"
+                 r"center|img|small|big|color\s*=?[^]]{0,12})\s*\](?!\])", re.I)
+_POOLS_INLINE = re.compile(r"\s*\[/?pools/\d+\]")
+
+
+def _tpl_sub(m):
+    inner = m.group(2) or ""
+    if "|" in inner:            # {{name|display}} -> display
+        return inner.split("|")[-1].strip()
+    return (m.group(1) + inner).strip()
+
+
+def display_clean(t):
+    """画廊参考行整删(悬停卡里是噪音,角色图另有 image 接口);模板展开;
+    hN./bbcode 剥壳留文;HTML 实体解码。"""
+    t = "\n".join(ln for ln in t.split("\n") if not _GALLERY_LINE.match(ln))
+    t = _POOLS_INLINE.sub("", t)
+    t = _TEMPLATE.sub(_tpl_sub, t)
+    t = _HSEC.sub("", t)
+    t = _BB.sub("", t)
+    return html.unescape(t)
+
+
 def clean_summary(body, cap=None):
     """Collapse whitespace and truncate, but KEEP [[...]] link markers so the
     front-end can render them clickable. Source is already clean_wiki output."""
@@ -141,6 +170,7 @@ def clean_summary(body, cap=None):
     if cap is None:
         cap = SUMMARY_LEN
     t = body.replace("\r\n", "\n").replace("\r", "\n")
+    t = display_clean(t)
     # keep [[...]] verbatim, compress whitespace around them
     parts = []
     last = 0
