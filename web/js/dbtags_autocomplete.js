@@ -10,14 +10,14 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.6";  // display only (status line); tag git with this
+const VERSION = "v0.4.5";  // display only (status line); tag git with this
 /* Split cache keys: DATA_V rides the category index JSONs + image URLs,
 ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.5";
-const ASSET_V = "a4";
+const ASSET_V = "a2";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -318,9 +318,6 @@ function applyConfig() {
 	root.classList.toggle("dbtags-theme-solarized", theme === "solarized");
 	root.classList.toggle("dbtags-theme-custom", theme === "custom" || isUserTheme);
 	root.classList.toggle("dbtags-width-fixed", Config.get("widthMode", "fit") === "fixed");
-	// category mark (v0.4.6): persistent left stripe colored by tag.cat.
-	// "off" hides it; any other stored value (incl. legacy "dot") = on
-	root.classList.toggle("dbtags-catmark-bar", Config.get("catMark", "bar") !== "off");
 	// inline custom vars beat any theme class block; wipe first so built-ins stay clean
 	for (const v of CUSTOM_INLINE_VARS) root.style.removeProperty(v);
 	const applyColors = (c) => {
@@ -449,14 +446,6 @@ function linkLabel(target, disp) {
 	const cn = (disp && hasCJK(disp)) ? disp.trim() : zhNameOf(target);
 	if (!cn) return { main: plain, en: "" };
 	return { main: cn, en: target };
-}
-
-/* category tint for a link chip (v0.4.6): merged TAG_MAP lookup, so a general
-   tag linked from a character page still colors green. No data-cat when the
-   target is not a loaded tag -> chip keeps the plain theme accent color. */
-function setChipCat(el, target) {
-	const t = index ? getTagMap().get(normName(target)) : null;
-	if (t && typeof t.cat === "number") el.dataset.cat = String(t.cat);
 }
 
 /* ---- pinyin (build-time py field, positionally parallel to zhSources) ---- */
@@ -977,9 +966,7 @@ function buildItemRow(item, word) {
 			parts.push($el("span.dbtags-ac-zh-src", { textContent: ` ${matchText}`, title: `命中来源：${ZH_HIT[matchType]}` }));
 		}
 	}
-	const row = $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), {}, parts);
-	if (typeof tag.cat === "number") row.dataset.cat = String(tag.cat);   // category mark (v0.4.6)
-	return row;
+	return $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), {}, parts);
 }
 
 class DBTagsAutoComplete {
@@ -1150,7 +1137,6 @@ class DBTagsAutoComplete {
 		for (const l of links) {
 			const lab = linkLabel(l.n, l.t);
 			const cap = $el("span.dbtags-ac-link" + (this._addedTags.has(l.n) ? ".dbtags-ac-link--added" : ""), { title: l.n });
-			setChipCat(cap, l.n);
 			const plus = $el("span.dbtags-ac-plus", {
 				textContent: this._addedTags.has(l.n) ? "✓" : "+",
 				title: "添加（光标处未完成的搜索词会被顶替）",
@@ -1961,7 +1947,6 @@ const SETTING_DEFS = {
 	minPost: 50,
 	maxCount: 114,
 	enabledCats: "",   // CSV of category keys to load; "" = follow catalog.json defaults (通用 + meta)
-	catMark: "bar",    // v0.4.6 category mark: bar | off (persistent left stripe per category)
 	imgMode: "large",
 	hudImgMode: "large",
 	navMode: "A",
@@ -2026,7 +2011,6 @@ function renderWikiBody(container, text, terms, h) {
 		if (piece.type === "link") {
 			const lab = linkLabel(piece.target, piece.label);
 			const cap = $el("span.dbtags-ac-link", { title: piece.target });
-			setChipCat(cap, piece.target);
 			cap.append(lab.main);
 			if (lab.en) cap.append($el("span.dbtags-ac-link-en", { textContent: ` (${lab.en})` }));
 			cap.addEventListener("click", (e) => {
@@ -3458,7 +3442,6 @@ class Styler {
 			this.#fontRow(),
 			this.#numSliderRow("行高", "rowH", 20, 60, 26, "px"),
 			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
-			this.#comboRow("类别标记", "catMark", [["bar", "色条（角色蓝/通用绿/meta橙）"], ["off", "关"]], "bar"),
 			this.#numSliderRow("列表宽度", "width", 240, 800, 340, "px"),
 		);
 
