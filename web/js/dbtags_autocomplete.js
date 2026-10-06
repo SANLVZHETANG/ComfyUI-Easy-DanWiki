@@ -10,14 +10,14 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.5";  // display only (status line); tag git with this
+const VERSION = "v0.4.6";  // display only (status line); tag git with this
 /* Split cache keys: DATA_V rides the category index JSONs + image URLs,
 ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.5";
-const ASSET_V = "a2";
+const ASSET_V = "a5";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -446,6 +446,13 @@ function linkLabel(target, disp) {
 	const cn = (disp && hasCJK(disp)) ? disp.trim() : zhNameOf(target);
 	if (!cn) return { main: plain, en: "" };
 	return { main: cn, en: target };
+}
+
+/* character-category flag for wiki chips (v0.4.6): merged TAG_MAP lookup, so
+   a cat=4 target linked from any page goes orange; unknown targets don't */
+function isCharTag(target) {
+	const t = index ? getTagMap().get(normName(target)) : null;
+	return !!(t && t.cat === 4);
 }
 
 /* ---- pinyin (build-time py field, positionally parallel to zhSources) ---- */
@@ -966,7 +973,9 @@ function buildItemRow(item, word) {
 			parts.push($el("span.dbtags-ac-zh-src", { textContent: ` ${matchText}`, title: `命中来源：${ZH_HIT[matchType]}` }));
 		}
 	}
-	return $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), {}, parts);
+	const row = $el("div.dbtags-ac-item" + (matchType === "fuzzy" ? ".dbtags-ac-item--fuzzy" : ""), {}, parts);
+	if (tag.cat === 4) row.classList.add("dbtags-ac-item--char");   // orange name (v0.4.6)
+	return row;
 }
 
 class DBTagsAutoComplete {
@@ -1137,6 +1146,7 @@ class DBTagsAutoComplete {
 		for (const l of links) {
 			const lab = linkLabel(l.n, l.t);
 			const cap = $el("span.dbtags-ac-link" + (this._addedTags.has(l.n) ? ".dbtags-ac-link--added" : ""), { title: l.n });
+			if (isCharTag(l.n)) cap.classList.add("dbtags-ac-link--char");
 			const plus = $el("span.dbtags-ac-plus", {
 				textContent: this._addedTags.has(l.n) ? "✓" : "+",
 				title: "添加（光标处未完成的搜索词会被顶替）",
@@ -2011,6 +2021,7 @@ function renderWikiBody(container, text, terms, h) {
 		if (piece.type === "link") {
 			const lab = linkLabel(piece.target, piece.label);
 			const cap = $el("span.dbtags-ac-link", { title: piece.target });
+			if (isCharTag(piece.target)) cap.classList.add("dbtags-ac-link--char");
 			cap.append(lab.main);
 			if (lab.en) cap.append($el("span.dbtags-ac-link-en", { textContent: ` (${lab.en})` }));
 			cap.addEventListener("click", (e) => {

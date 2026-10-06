@@ -24,6 +24,14 @@
 	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.12);
 	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.08);
 	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.18);
+	/* character-tag orange (v0.4.6): bright variant for dark panels; the
+	   runtime dbtags-ac-onlight flag (recomputed per theme, incl. custom/user
+	   presets) swaps in the deep variant for light panels */
+	--dbtags-char-accent: #f0913e;
+}
+
+:root.dbtags-ac-onlight {
+	--dbtags-char-accent: #c05f1e;
 }
 
 :root.dbtags-theme-light {
@@ -252,6 +260,19 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* fuzzy wiki-content match row + snippet */
 .dbtags-ac-item--fuzzy {
 	background: var(--dbtags-ac-fuzzy-bg);
+}
+
+/* ---- character tags (cat=4) go orange everywhere (v0.4.6) ---- */
+/* dropdown row: name + zh column tinted; count pill untouched */
+.dbtags-ac-item--char .dbtags-ac-name,
+.dbtags-ac-item--char .dbtags-ac-zh {
+	color: var(--dbtags-char-accent);
+}
+/* wiki link chips: body/HUD inline and pill panel share the base element.
+   compound selector beats both .dbtags-ac-link (theme accent) and
+   .dbtags-ac-link--added (muted) regardless of source order. */
+.dbtags-ac-link.dbtags-ac-link--char {
+	color: var(--dbtags-char-accent);
 }
 
 .dbtags-ac-empty {
