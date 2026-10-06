@@ -24,6 +24,19 @@
 	--dbtags-ac-pill-bg: rgba(255, 255, 255, 0.12);
 	--dbtags-ac-toggle-bg: rgba(255, 255, 255, 0.08);
 	--dbtags-ac-toggle-hover: rgba(255, 255, 255, 0.18);
+	/* category colors (v0.4.6, danbooru convention: general green / character
+	   blue / meta orange). Base = bright variants for dark panels; the runtime
+	   dbtags-ac-onlight flag (recomputed by applyConfig for EVERY theme, incl.
+	   custom/user presets) swaps in deep variants for light panels. */
+	--dbtags-cat-general: #5cb865;
+	--dbtags-cat-character: #6ab7f0;
+	--dbtags-cat-meta: #f2925c;
+}
+
+:root.dbtags-ac-onlight {
+	--dbtags-cat-general: #2e8b3d;
+	--dbtags-cat-character: #2f6fb5;
+	--dbtags-cat-meta: #c25a24;
 }
 
 :root.dbtags-theme-light {
@@ -252,6 +265,50 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* fuzzy wiki-content match row + snippet */
 .dbtags-ac-item--fuzzy {
 	background: var(--dbtags-ac-fuzzy-bg);
+}
+
+/* ---- category marks (v0.4.6): character vs general vs meta ---- */
+/* dot: 7px bullet in the flex row (before the name) */
+.dbtags-catmark-dot .dbtags-ac-item[data-cat]::before {
+	content: "";
+	flex: 0 0 auto;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--dbtags-cat-general);
+	box-shadow: 0 0 0 1px rgba(127, 127, 127, 0.35);
+}
+.dbtags-catmark-dot .dbtags-ac-item[data-cat="4"]::before {
+	background: var(--dbtags-cat-character);
+}
+.dbtags-catmark-dot .dbtags-ac-item[data-cat="5"]::before {
+	background: var(--dbtags-cat-meta);
+}
+/* bar: left edge stripe (selected row keeps its background on top) */
+.dbtags-catmark-bar .dbtags-ac-item[data-cat] {
+	border-left: 3px solid var(--dbtags-cat-general);
+	padding-left: 4px;
+}
+.dbtags-catmark-bar .dbtags-ac-item[data-cat="4"] {
+	border-left-color: var(--dbtags-cat-character);
+}
+.dbtags-catmark-bar .dbtags-ac-item[data-cat="5"] {
+	border-left-color: var(--dbtags-cat-meta);
+}
+/* wiki link chips tinted by category (pill panel + body/HUD inline share the
+   element; --added rows keep their muted look). Unknown targets have no
+   data-cat and keep the plain theme accent color. */
+.dbtags-catmark-dot .dbtags-ac-link[data-cat]:not(.dbtags-ac-link--added),
+.dbtags-catmark-bar .dbtags-ac-link[data-cat]:not(.dbtags-ac-link--added) {
+	color: var(--dbtags-cat-general);
+}
+.dbtags-catmark-dot .dbtags-ac-link[data-cat="4"]:not(.dbtags-ac-link--added),
+.dbtags-catmark-bar .dbtags-ac-link[data-cat="4"]:not(.dbtags-ac-link--added) {
+	color: var(--dbtags-cat-character);
+}
+.dbtags-catmark-dot .dbtags-ac-link[data-cat="5"]:not(.dbtags-ac-link--added),
+.dbtags-catmark-bar .dbtags-ac-link[data-cat="5"]:not(.dbtags-ac-link--added) {
+	color: var(--dbtags-cat-meta);
 }
 
 .dbtags-ac-empty {
