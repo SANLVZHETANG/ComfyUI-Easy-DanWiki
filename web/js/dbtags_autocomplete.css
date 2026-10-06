@@ -268,23 +268,8 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 
 /* ---- category marks (v0.4.6): character vs general vs meta ---- */
-/* dot: 7px bullet in the flex row (before the name) */
-.dbtags-catmark-dot .dbtags-ac-item[data-cat]::before {
-	content: "";
-	flex: 0 0 auto;
-	width: 7px;
-	height: 7px;
-	border-radius: 50%;
-	background: var(--dbtags-cat-general);
-	box-shadow: 0 0 0 1px rgba(127, 127, 127, 0.35);
-}
-.dbtags-catmark-dot .dbtags-ac-item[data-cat="4"]::before {
-	background: var(--dbtags-cat-character);
-}
-.dbtags-catmark-dot .dbtags-ac-item[data-cat="5"]::before {
-	background: var(--dbtags-cat-meta);
-}
-/* bar: left edge stripe (selected row keeps its background on top) */
+/* persistent left stripe colored by tag.cat (selected row keeps its own
+   category stripe + background highlight). "off" root class = none. */
 .dbtags-catmark-bar .dbtags-ac-item[data-cat] {
 	border-left: 3px solid var(--dbtags-cat-general);
 	padding-left: 4px;
@@ -298,15 +283,12 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* wiki link chips tinted by category (pill panel + body/HUD inline share the
    element; --added rows keep their muted look). Unknown targets have no
    data-cat and keep the plain theme accent color. */
-.dbtags-catmark-dot .dbtags-ac-link[data-cat]:not(.dbtags-ac-link--added),
 .dbtags-catmark-bar .dbtags-ac-link[data-cat]:not(.dbtags-ac-link--added) {
 	color: var(--dbtags-cat-general);
 }
-.dbtags-catmark-dot .dbtags-ac-link[data-cat="4"]:not(.dbtags-ac-link--added),
 .dbtags-catmark-bar .dbtags-ac-link[data-cat="4"]:not(.dbtags-ac-link--added) {
 	color: var(--dbtags-cat-character);
 }
-.dbtags-catmark-dot .dbtags-ac-link[data-cat="5"]:not(.dbtags-ac-link--added),
 .dbtags-catmark-bar .dbtags-ac-link[data-cat="5"]:not(.dbtags-ac-link--added) {
 	color: var(--dbtags-cat-meta);
 }

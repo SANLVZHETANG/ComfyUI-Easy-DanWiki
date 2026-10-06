@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.5";
-const ASSET_V = "a3";
+const ASSET_V = "a4";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -318,11 +318,9 @@ function applyConfig() {
 	root.classList.toggle("dbtags-theme-solarized", theme === "solarized");
 	root.classList.toggle("dbtags-theme-custom", theme === "custom" || isUserTheme);
 	root.classList.toggle("dbtags-width-fixed", Config.get("widthMode", "fit") === "fixed");
-	// category mark (v0.4.6): dot = colored bullet before row name, bar = left
-	// edge stripe, off = neither; CSS gates the styles on these root classes
-	const catMark = Config.get("catMark", "bar");
-	root.classList.toggle("dbtags-catmark-dot", catMark === "dot");
-	root.classList.toggle("dbtags-catmark-bar", catMark === "bar");
+	// category mark (v0.4.6): persistent left stripe colored by tag.cat.
+	// "off" hides it; any other stored value (incl. legacy "dot") = on
+	root.classList.toggle("dbtags-catmark-bar", Config.get("catMark", "bar") !== "off");
 	// inline custom vars beat any theme class block; wipe first so built-ins stay clean
 	for (const v of CUSTOM_INLINE_VARS) root.style.removeProperty(v);
 	const applyColors = (c) => {
@@ -1963,7 +1961,7 @@ const SETTING_DEFS = {
 	minPost: 50,
 	maxCount: 114,
 	enabledCats: "",   // CSV of category keys to load; "" = follow catalog.json defaults (通用 + meta)
-	catMark: "bar",    // v0.4.6 category mark: dot | bar | off (bar = persistent left stripe, per category)
+	catMark: "bar",    // v0.4.6 category mark: bar | off (persistent left stripe per category)
 	imgMode: "large",
 	hudImgMode: "large",
 	navMode: "A",
@@ -3460,7 +3458,7 @@ class Styler {
 			this.#fontRow(),
 			this.#numSliderRow("行高", "rowH", 20, 60, 26, "px"),
 			this.#comboRow("宽度模式", "widthMode", [["fit", "撑开（随内容）"], ["fixed", "固定"]], "fit"),
-			this.#comboRow("类别标记", "catMark", [["bar", "色条（角色蓝/通用绿/meta橙）"], ["dot", "彩点（名字前圆点）"], ["off", "关"]], "bar"),
+			this.#comboRow("类别标记", "catMark", [["bar", "色条（角色蓝/通用绿/meta橙）"], ["off", "关"]], "bar"),
 			this.#numSliderRow("列表宽度", "width", 240, 800, 340, "px"),
 		);
 
