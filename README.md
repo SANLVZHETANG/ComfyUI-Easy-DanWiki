@@ -1,6 +1,6 @@
 # ComfyUI-Easy-DanWiki
 
-<img width="865" height="447" alt="111" src="https://github.com/user-attachments/assets/6069f0b3-8e97-412e-abcb-27aba0b4c582" />
+<img width="2114" height="1751" alt="head" src="https://github.com/user-attachments/assets/e480bf39-8430-40b6-9e24-55e070e316fb" />
 
 > 还在面对琳琅满目的 TAG 候选列表，不知道该选哪个？
 >
