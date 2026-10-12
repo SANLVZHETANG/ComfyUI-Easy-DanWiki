@@ -573,14 +573,19 @@ function typeRank(mt) {
 }
 
 /* ---- candidate list limits (P10) ---- */
-function applyLimit(results) {
+function applyLimit(results, term) {
 	if (Config.get("mode", "limit") === "all") {
 		// show everything (safety cap 500), report the true total
 		return { list: results.slice(0, 500), total: results.length };
 	}
-	// limit mode: heat filter (minPost, 0 = off) AND count cap, both always active
+	// limit mode: heat filter (minPost, 0 = off) AND count cap, both always active.
+	// backfill (v0.4.7c): skeleton tags (pc<500, e.g. nelson_mandela pc=3) live only
+	// via EXACT name match -> must pass the heat gate or they stay unfound.
+	const exact = (term || "").trim().toLowerCase().replace(/\s+/g, "_");
 	const minPc = Config.getNum("minPost", 500);
-	const filtered = minPc > 0 ? results.filter((r) => r.tag.post_count >= minPc) : results;
+	const filtered = minPc > 0
+		? results.filter((r) => r.tag.post_count >= minPc || (exact && r.tag.name === exact))
+		: results;
 	const cap = Config.getNum("maxCount", 50);
 	return { list: filtered.slice(0, cap), total: filtered.length, dropped: results.length - filtered.length, minPc };
 }
@@ -1005,7 +1010,7 @@ function runQuery(term, word) {
 	}
 	dlog("D", `search "${term}" -> ${results.length}${isFuzzy ? " (body)" : ""} hits, ${Math.round((performance.now() - t0) * 10) / 10}ms`);
 	if (!results.length) return { list: [], total: 0 };
-	const lim = applyLimit(results);
+	const lim = applyLimit(results, term);
 	return { ...lim, isFuzzy };
 }
 
@@ -1932,7 +1937,7 @@ class DBTagsAutoComplete {
 	/* shared list renderer for both phases (seq-stale updates are dropped) */
 	#renderResults(results, term, word, seq) {
 		if (seq !== this._querySeq) return; // stale result, drop it
-		const { list, total, dropped, minPc } = applyLimit(results);
+		const { list, total, dropped, minPc } = applyLimit(results, term);
 		if (!list.length) {
 			if (!total) {
 				if (this._bodyPending) {
