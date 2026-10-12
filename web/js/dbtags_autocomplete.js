@@ -580,11 +580,20 @@ function applyLimit(results, term) {
 	}
 	// limit mode: heat filter (minPost, 0 = off) AND count cap, both always active.
 	// backfill (v0.4.7c): skeleton tags (pc<500, e.g. nelson_mandela pc=3) live only
-	// via EXACT name match -> must pass the heat gate or they stay unfound.
+	// via EXACT match -> must pass the heat gate or they stay unfound.
+	// fix5: exact zh names too (zhtag/aliases_zh/zh), both 输入「黄苹果」and EN name
 	const exact = (term || "").trim().toLowerCase().replace(/\s+/g, "_");
 	const minPc = Config.getNum("minPost", 500);
+	const isExactHit = (r) => {
+		if (!exact) return false;
+		if (r.tag.name === exact) return true;
+		const zhPool = [r.tag.zhtag].concat(
+			Array.isArray(r.tag.aliases_zh) ? r.tag.aliases_zh : [],
+			Array.isArray(r.tag.zh) ? r.tag.zh : []);
+		return zhPool.includes(exact);
+	};
 	const filtered = minPc > 0
-		? results.filter((r) => r.tag.post_count >= minPc || (exact && r.tag.name === exact))
+		? results.filter((r) => r.tag.post_count >= minPc || isExactHit(r))
 		: results;
 	const cap = Config.getNum("maxCount", 50);
 	return { list: filtered.slice(0, cap), total: filtered.length, dropped: results.length - filtered.length, minPc };
