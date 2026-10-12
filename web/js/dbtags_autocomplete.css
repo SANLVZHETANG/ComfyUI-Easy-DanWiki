@@ -1541,10 +1541,27 @@ html.dbtags-noblur .dbtags-ac-hud {
 	cursor: pointer;
 }
 .dbtags-ac-gtoolbtn {
+	/* all:unset 归零一切继承与宿主注入(用户报“字体竖起来了”), 再手工重建全部外观 */
+	all: unset;
+	box-sizing: border-box;
+	display: inline-block;
+	writing-mode: horizontal-tb !important;
+	text-orientation: mixed !important;
+	text-combine-upright: none !important;
+	white-space: nowrap !important;
+	font-family: var(--dbtags-ac-family);
 	font-size: 11px;
-	line-height: 16px;
-	padding: 0 7px;
-	flex-shrink: 0;
+	line-height: 18px;
+	padding: 1px 9px;
+	cursor: pointer;
+	color: var(--dbtags-ac-text);
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	flex: 0 0 auto;
+}
+.dbtags-ac-gtoolbtn:hover {
+	background: var(--dbtags-ac-toggle-hover);
 }
 
 /* 滚动区 + 节 */
@@ -1573,6 +1590,15 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 .dbtags-ac-gsec-head:hover {
 	background: var(--dbtags-ac-toggle-hover);
+}
+.dbtags-ac-gsec-head--deep {
+	font-weight: normal;
+	font-style: italic;
+}
+.dbtags-ac-gsec-title,
+.dbtags-ac-gsec-en {
+	white-space: nowrap;
+	word-break: normal !important;
 }
 .dbtags-ac-gsec-caret {
 	font-size: 10px;

@@ -164,6 +164,17 @@ GROUP_ZH = {
     "theme": "主题", "language": "语言",
 }
 # ---- 高频英文节标题 -> 中文（未命中者前端原样显示英文） ----
+# 全量表自 v0.4.7 起迁到 tools/tag_group_section_zh.json（可独立增补，免改码）
+SEC_ZH_FILE = os.path.join(HUB_BASE, "tools", "tag_group_section_zh.json")
+
+
+def load_sec_zh():
+    try:
+        with io.open(SEC_ZH_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print("note: 节标题汉化表加载失败(%s)，用内置精简表" % e)
+        return SEC_ZH
 SEC_ZH = {
     "View Angle": "取景视角", "Perspective/Depth": "透视与纵深", "Composition": "构图",
     "Format": "媒介格式", "Subject matter": "题材", "Framing the body": "身体取景",
@@ -233,6 +244,7 @@ def list_titles(offline):
 def build(offline=False):
     titles = list_titles(offline)
     out, totR, totN, skipped = [], 0, 0, []
+    SEC_ZH = load_sec_zh()
     for t in titles:
         body = fetch_body(t, offline)
         if not body:

@@ -3112,11 +3112,11 @@ function buildGroupBody(host, g, ctx) {
 	const kcb = $el("input", { type: "checkbox" });
 	kcb.onchange = () => { st.onlyKnown = kcb.checked; render(); };
 	known.append(kcb, document.createTextNode("只看已收录"));
-	const cAll = $el("button.dbtags-ac-close.dbtags-ac-gtoolbtn", {
+	const cAll = $el("button.dbtags-ac-gtoolbtn", {
 		textContent: "收起全部",
 		onclick: () => setCollAll(true),
 	});
-	const eAll = $el("button.dbtags-ac-close.dbtags-ac-gtoolbtn", {
+	const eAll = $el("button.dbtags-ac-gtoolbtn", {
 		textContent: "展开全部",
 		onclick: () => setCollAll(false),
 	});
@@ -3134,30 +3134,40 @@ function buildGroupBody(host, g, ctx) {
 		const map = index ? getTagMap() : new Map();
 		let shown = 0;
 		g.s.forEach((s, si) => {
+			const lv = s[2] || 4;
+			//collapsed state: grid truly hidden; searching temporarily expands
+			const open = !st.coll[si] || !!st.q;
 			const tiles = [];
-			for (const m of s[3]) {
-				const name = m[0];
-				const t = map.get(normName(name));
-				if (st.onlyKnown && !t) continue;
-				if (st.q && !(name.includes(st.q)
-					|| name.replace(/_/g, " ").includes(st.q)
-					|| (t && zhLabelOf(name).toLowerCase().includes(st.q)))) continue;
-				shown++;
-				tiles.push(tile(name, m[1], t));
+			if (open) {
+				for (const m of s[3]) {
+					const name = m[0];
+					const t = map.get(normName(name));
+					if (st.onlyKnown && !t) continue;
+					if (st.q && !(name.includes(st.q)
+						|| name.replace(/_/g, " ").includes(st.q)
+						|| (t && zhLabelOf(name).toLowerCase().includes(st.q)))) continue;
+					shown++;
+					tiles.push(tile(name, m[1], t));
+				}
+				if (!tiles.length) return;
 			}
-			if (!tiles.length) return;
 			const sec = $el("div.dbtags-ac-gsec");
 			const hd = $el("div.dbtags-ac-gsec-head", { title: "点击折叠/展开" });
+			if (lv > 4) hd.style.marginLeft = Math.min((lv - 4) * 14, 28) + "px";
+			if (lv >= 6) hd.classList.add("dbtags-ac-gsec-head--deep");
 			hd.append(
-				$el("span.dbtags-ac-gsec-caret", { textContent: st.coll[si] ? "▸" : "▾" }),
+				$el("span.dbtags-ac-gsec-caret", { textContent: open ? "▾" : "▸" }),
 				$el("span.dbtags-ac-gsec-title", { textContent: s[1] || s[0] || "（无标题节）" }),
 				$el("span.dbtags-ac-gsec-en", { textContent: s[1] && s[0] ? " " + s[0] : "" }),
-				$el("span.dbtags-ac-gsec-count", { textContent: `${tiles.length}/${s[3].length}` }),
+				$el("span.dbtags-ac-gsec-count", { textContent: open ? `${tiles.length}/${s[3].length}` : `${s[3].length}` }),
 			);
 			hd.onclick = () => { if (st.coll[si]) delete st.coll[si]; else st.coll[si] = 1; render(); };
-			const grid = $el("div.dbtags-ac-gtiles");
-			grid.append(...tiles);
-			sec.append(hd, grid);
+			sec.append(hd);
+			if (open) {
+				const grid = $el("div.dbtags-ac-gtiles");
+				grid.append(...tiles);
+				sec.append(grid);
+			}
 			body.append(sec);
 		});
 		if (!shown) body.append($el("div.dbtags-ac-empty", { textContent: "无匹配成员" }));
