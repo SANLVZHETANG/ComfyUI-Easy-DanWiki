@@ -16,8 +16,8 @@ ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
-const DATA_V = "v0.4.7";
-const ASSET_V = "a7";
+const DATA_V = "v0.4.7b";
+const ASSET_V = "a8";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -3134,8 +3134,9 @@ function buildGroupBody(host, g, ctx) {
 		const map = index ? getTagMap() : new Map();
 		let shown = 0;
 		g.s.forEach((s, si) => {
-			const lv = s[2] || 4;
-			//collapsed state: grid truly hidden; searching temporarily expands
+			// collapsed state: grid truly hidden; searching temporarily expands
+			// 注: wiki 标题层级(h4/h5/h6)是排版残留、非语义层级——不做任何缩进/斜体
+			// （sex_acts 的 Ageplay…Roles 全是 h6→曾被误渲染成"同性行为"的子节，用户验收 fix2）
 			const open = !st.coll[si] || !!st.q;
 			const tiles = [];
 			if (open) {
@@ -3153,8 +3154,6 @@ function buildGroupBody(host, g, ctx) {
 			}
 			const sec = $el("div.dbtags-ac-gsec");
 			const hd = $el("div.dbtags-ac-gsec-head", { title: "点击折叠/展开" });
-			if (lv > 4) hd.style.marginLeft = Math.min((lv - 4) * 14, 28) + "px";
-			if (lv >= 6) hd.classList.add("dbtags-ac-gsec-head--deep");
 			hd.append(
 				$el("span.dbtags-ac-gsec-caret", { textContent: open ? "▾" : "▸" }),
 				$el("span.dbtags-ac-gsec-title", { textContent: s[1] || s[0] || "（无标题节）" }),
@@ -3240,6 +3239,45 @@ class GroupBrowser {
 		this.el = $el("div.dbtags-ac-gbrowser", {}, [this.head, this.body]);
 		this.el.style.display = "none";
 		document.body.append(this.el);
+		// ---- 自由拖拽 + 缩放 + 几何记忆（用户验收反馈 fix2）----
+		// head 整条可拖；窗口尺寸走 CSS resize:both（RO 节流落盘）；位置只在用户拖过
+		// 一次后才记忆，首开仍锚点定位；几何存 localStorage dbtags.autocomplete.gbGeom。
+		this._geom = (() => {
+			try { return JSON.parse(localStorage.getItem(ID + ".gbGeom") || "null") || {}; }
+			catch { return {}; }
+		})();
+		this.head.addEventListener("pointerdown", (e) => {
+			if (e.button !== 0 || e.target.closest(".dbtags-ac-gb-btn")) return;
+			const rect = this.el.getBoundingClientRect();
+			const dx = e.clientX - rect.left;
+			const dy = e.clientY - rect.top;
+			this.el.classList.add("dbtags-ac-gb-drag");
+			try { this.head.setPointerCapture(e.pointerId); } catch { }
+			const onMove = (ev) => {
+				const x = Math.min(Math.max(ev.clientX - dx, 40 - rect.width), window.innerWidth - 40);
+				const y = Math.min(Math.max(ev.clientY - dy, 0), window.innerHeight - 24);
+				this.el.style.left = Math.round(x) + "px";
+				this.el.style.top = Math.round(y) + "px";
+				this.el.style.right = "auto";
+			};
+			const onUp = () => {
+				this.el.classList.remove("dbtags-ac-gb-drag");
+				this.head.removeEventListener("pointermove", onMove);
+				this.head.removeEventListener("pointerup", onUp);
+				this.head.removeEventListener("pointercancel", onUp);
+				if (this.el.style.display !== "none") this._savePos();
+			};
+			this.head.addEventListener("pointermove", onMove);
+			this.head.addEventListener("pointerup", onUp);
+			this.head.addEventListener("pointercancel", onUp);
+		});
+		this._szTimer = 0;
+		this._ro = new ResizeObserver(() => {
+			if (this.el.style.display === "none") return;
+			clearTimeout(this._szTimer);
+			this._szTimer = setTimeout(() => this._saveSize(), 200);
+		});
+		this._ro.observe(this.el);
 		this._key = (e) => {
 			if (e.key === "Escape" && this.el.style.display !== "none") {
 				e.preventDefault();
@@ -3263,7 +3301,18 @@ class GroupBrowser {
 			},
 		});
 		this.el.style.display = "";
-		if (anchorEl && anchorEl.isConnected) {
+		const gm = this._geom || {};
+		// 恢复记忆尺寸（resize:both 生成的内联尺寸刷新即丢，这里回填）
+		if (gm.w >= 320 && gm.h >= 200) {
+			this.el.style.width = gm.w + "px";
+			this.el.style.height = gm.h + "px";
+		}
+		if (Number.isFinite(gm.x) && Number.isFinite(gm.y)
+			&& gm.x < window.innerWidth - 40 && gm.y < window.innerHeight - 40) {
+			this.el.style.left = gm.x + "px";
+			this.el.style.top = gm.y + "px";
+			this.el.style.right = "auto";
+		} else if (anchorEl && anchorEl.isConnected) {
 			const r = anchorEl.getBoundingClientRect();
 			let left = r.right + 10;
 			if (left + this.el.offsetWidth > window.innerWidth - 8) {
@@ -3275,10 +3324,27 @@ class GroupBrowser {
 		} else {
 			this.el.style.left = "";
 			this.el.style.top = "";
+			this.el.style.right = "";
 		}
 	}
 	close() {
 		this.el.style.display = "none";
+	}
+	_savePos() {
+		const r = this.el.getBoundingClientRect();
+		if (!r.width || this.el.style.display === "none") return;
+		this._geom.x = Math.round(r.left);
+		this._geom.y = Math.round(r.top);
+		this._geom.w = Math.round(r.width);
+		this._geom.h = Math.round(r.height);
+		try { localStorage.setItem(ID + ".gbGeom", JSON.stringify(this._geom)); } catch { }
+	}
+	_saveSize() {
+		const r = this.el.getBoundingClientRect();
+		if (!r.width || this.el.style.display === "none") return;
+		this._geom.w = Math.round(r.width);
+		this._geom.h = Math.round(r.height);
+		try { localStorage.setItem(ID + ".gbGeom", JSON.stringify(this._geom)); } catch { }
 	}
 }
 

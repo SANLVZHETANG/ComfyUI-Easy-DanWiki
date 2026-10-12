@@ -1458,6 +1458,12 @@ html.dbtags-noblur .dbtags-ac-hud {
 	top: 64px;
 	width: min(480px, 94vw);
 	height: min(78vh, 780px);
+	/* fix2: 右下角手柄自由缩放；尺寸/位置由 JS 存 localStorage(.gbGeom) */
+	resize: both;
+	min-width: 320px;
+	min-height: 200px;
+	max-width: 96vw;
+	max-height: 94vh;
 	display: flex;
 	flex-direction: column;
 	background: var(--dbtags-ac-bg);
@@ -1478,6 +1484,13 @@ html.dbtags-noblur .dbtags-ac-hud {
 	background: var(--dbtags-ac-bg2);
 	border-bottom: 1px solid var(--dbtags-ac-border);
 	flex-shrink: 0;
+	/* fix2: 整条标题栏 = 拖拽把手 */
+	cursor: move;
+	user-select: none;
+}
+/* 拖动中禁止全文选中 */
+.dbtags-ac-gbrowser.dbtags-ac-gb-drag {
+	user-select: none;
 }
 .dbtags-ac-gb-title {
 	font-weight: bold;
@@ -1590,10 +1603,6 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 .dbtags-ac-gsec-head:hover {
 	background: var(--dbtags-ac-toggle-hover);
-}
-.dbtags-ac-gsec-head--deep {
-	font-weight: normal;
-	font-style: italic;
 }
 .dbtags-ac-gsec-title,
 .dbtags-ac-gsec-en {
