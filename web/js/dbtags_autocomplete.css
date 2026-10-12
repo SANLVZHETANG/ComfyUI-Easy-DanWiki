@@ -1379,6 +1379,19 @@ html.dbtags-noblur .dbtags-ac-hud {
 	line-height: 1.35;
 	margin-bottom: 3px;
 }
+/* small muted alias words inline, right of the primary name (no flex rework) */
+.dbtags-ac-hud-zh-alias {
+	display: inline-block;
+	max-width: 70%;
+	margin-left: 7px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: baseline;
+	color: var(--dbtags-ac-sub);
+	font-size: calc(var(--dbtags-ac-font) - 2px);
+	font-weight: 400;
+}
 
 /* wiki body inline: the HUD window shows image + text directly */
 .dbtags-ac-hud-body {

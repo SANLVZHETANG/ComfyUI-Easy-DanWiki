@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a8";
+const ASSET_V = "a9";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2917,6 +2917,12 @@ class Hud {
 		renderMemberChips(this.gm, tag.name, (short) => this.openGroup(short));
 		const primary = tag.zhtag || listField(tag.aliases_zh)[0] || listField(tag.zh)[0] || "";
 		this.zh.textContent = primary;
+		// a few alias words as small muted text right of the primary name;
+		// decorative only, so it must never break the render chain (try/catch)
+		try {
+			const aliasList = zhSources(tag).filter((x, i, a) => x && x !== primary && a.indexOf(x) === i).slice(0, 3);
+			if (aliasList.length) this.zh.append($el("span.dbtags-ac-hud-zh-alias", { textContent: aliasList.join(" / ") }));
+		} catch (e) { /* alias is decoration - the primary name above is the show */ }
 		this.zh.style.display = primary ? "" : "none";
 		if (Config.get("hudImg", "true") !== "false") {
 			this.#loadImage(tag);
