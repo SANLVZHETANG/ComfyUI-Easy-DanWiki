@@ -1460,7 +1460,13 @@ class DBTagsAutoComplete {
 		})];
 		const rows = this.current.map((it) => it.el);
 		if (!list.length) {
-			rows.push($el("div.dbtags-ac-empty", { textContent: `无匹配的标签组（${rest}）；「全部组…」打开目录页` }));
+			/* fix23: self-diagnosing empty hit - shows the loaded group count inline so a
+			   stale-cached js (trigger dead -> this row never appears) or a dead groups
+			   fetch (count 0) is visible without opening the console */
+			rows.push($el("div.dbtags-ac-empty", {
+				title: "诊断：出现本行=组触发已生效；「已加载 0 组」=组数据没到位；「已加载91组」=触发与数据都正常",
+				textContent: `未匹配到组「${rest}」（已加载 ${_groups ? _groups.length : 0} 组）；短写 group:${rest} 同试 · 「全部组…」打开目录页`,
+			}));
 		} else {
 			rows.push($el("div.dbtags-ac-empty", { textContent: `共 ${list.length} 组 · 「全部组…」= 目录页；回车/点击打开组，组内点成员加词` }));
 		}
