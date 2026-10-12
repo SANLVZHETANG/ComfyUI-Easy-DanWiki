@@ -2921,7 +2921,7 @@ class Hud {
 		// decorative only, so it must never break the render chain (try/catch)
 		try {
 			const aliasList = zhSources(tag).filter((x, i, a) => x && x !== primary && a.indexOf(x) === i).slice(0, 3);
-			if (aliasList.length) this.zh.append($el("span.dbtags-ac-hud-zh-alias", { textContent: aliasList.join(" / ") }));
+			if (aliasList.length) this.zh.append($el("span.dbtags-ac-hud-zh-alias", { textContent: aliasList.join("/") }));
 		} catch (e) { /* alias is decoration - the primary name above is the show */ }
 		this.zh.style.display = primary ? "" : "none";
 		if (Config.get("hudImg", "true") !== "false") {
