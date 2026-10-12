@@ -330,6 +330,18 @@ def load_zh_dict(path):
     return out
 
 
+def load_zh_dict_any(zh):
+    """A source's zh field: single jsonl path OR a list of them (merged;
+    used by the group-backfill pipeline). First file wins on name clashes
+    (original-lib translations take precedence over backfill files)."""
+    paths = [p for p in (zh if isinstance(zh, (list, tuple)) else [zh]) if p]
+    out = {}
+    for p in paths:
+        for k, v in load_zh_dict(p).items():
+            out.setdefault(k, v)
+    return out
+
+
 def build(limit, out_path, zh_dict_path=None, wiki_file=None,
           manifest_file=None, cat=None, name_set=None, out_pending=None):
     start = time.time()
@@ -341,7 +353,7 @@ def build(limit, out_path, zh_dict_path=None, wiki_file=None,
     for wf in wiki_files(wiki_file):
         rows.extend(load_rows(wf))
     manifest = load_manifest(manifest_file)
-    zh_dict = load_zh_dict(zh_dict_path)
+    zh_dict = load_zh_dict_any(zh_dict_path)
     if zh_dict:
         print("zh-dict merged: %d tags" % len(zh_dict), flush=True)
     verbose("loaded %d wiki rows, %d manifest entries" % (len(rows), len(manifest)))
