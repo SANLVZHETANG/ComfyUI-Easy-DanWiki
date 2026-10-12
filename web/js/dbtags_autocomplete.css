@@ -1418,6 +1418,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 	font-size: calc(var(--dbtags-ac-font) - 1px);
 	line-height: 1.5;
 	word-break: break-word;
+	text-indent: 2em; /* fix19: hanzi convention - first line starts two characters in */
 	padding-bottom: 4px;
 }
 
