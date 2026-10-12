@@ -1387,7 +1387,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	vertical-align: baseline;
+	vertical-align: text-bottom; /* fix16: rendered ladder review - hidden-baseline trap floats the span; text-bottom grounds it at any hudFont */
 	color: var(--dbtags-ac-sub);
 	font-size: calc(var(--dbtags-ac-font) - 2px);
 	font-weight: 400;
