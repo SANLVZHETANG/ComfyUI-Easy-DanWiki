@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a9";
+const ASSET_V = "a19"; /* a19 = first unused key ever; never reuse old keys (a9 clashed with fix6-era cache) */
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
