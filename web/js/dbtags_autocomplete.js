@@ -1072,6 +1072,21 @@ function buildGroupRow(g) {
 	return row;
 }
 
+/* fix3: 组目录页卡片（自适应多列栅格; button 形态, all:unset 防宿主注入竖字) */
+function buildGroupCard(g) {
+	const hit = index ? groupHit(g) : 0;
+	const card = $el("button.dbtags-ac-gcard", { title: `tag_group:${g.n}`, type: "button" });
+	card.append(
+		$el("span.dbtags-ac-gcard-h", {}, [
+			$el("span.dbtags-ac-gcard-ico", { textContent: "▣" }),
+			$el("span.dbtags-ac-gcard-zh", { textContent: g.zh || ("tag_group:" + g.n) }),
+			$el("span.dbtags-ac-gcard-cnt", { textContent: index ? `${hit}/${groupTotal(g)}` : "…", title: "已收录/成员" }),
+		]),
+		$el("span.dbtags-ac-gcard-en", { textContent: g.n.replace(/_/g, " ") }),
+	);
+	return card;
+}
+
 class DBTagsAutoComplete {
 	constructor(el, widget) {
 		this.el = el;
@@ -1402,7 +1417,21 @@ class DBTagsAutoComplete {
 				|| g.n.includes(kw)
 				|| g.n.replace(/_/g, " ").includes(kw))
 			.sort((a, b) => groupHit(b) - groupHit(a) || groupTotal(b) - groupTotal(a));
-		this.current = list.map((g) => {
+		// fix3: 首行固定「全部组…」——直接回车即开目录页
+		const allRow = $el("div.dbtags-ac-item.dbtags-ac-item--group", { title: "打开组浏览器（全部组目录）" });
+		allRow.append(
+			$el("span.dbtags-ac-g-ico", { textContent: "▣" }),
+			$el("span.dbtags-ac-name", { textContent: "全部组…" }),
+			$el("span.dbtags-ac-zh", { textContent: " 打开组浏览器目录" }),
+			$el("span.dbtags-ac-count", { textContent: _groups && _groups.length ? `${_groups.length} 组` : "…" }),
+		);
+		const allItem = { all: true, el: allRow };
+		allRow.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.#openAllGroups();
+		});
+		allRow.addEventListener("mouseenter", () => this.#setSelected(allItem));
+		this.current = [allItem, ...list.map((g) => {
 			const row = buildGroupRow(g);
 			const item = { group: g, el: row };
 			row.addEventListener("click", (e) => {
@@ -1411,13 +1440,13 @@ class DBTagsAutoComplete {
 			});
 			row.addEventListener("mouseenter", () => this.#setSelected(item));
 			return item;
-		});
-		if (!this.current.length) {
-			this.#showEmpty(`无匹配的标签组（${rest}）`);
-			return;
-		}
+		})];
 		const rows = this.current.map((it) => it.el);
-		rows.push($el("div.dbtags-ac-empty", { textContent: "共 91 组 · 回车/点击打开组浏览器，组内点成员加词" }));
+		if (!list.length) {
+			rows.push($el("div.dbtags-ac-empty", { textContent: `无匹配的标签组（${rest}）；「全部组…」打开目录页` }));
+		} else {
+			rows.push($el("div.dbtags-ac-empty", { textContent: `共 ${list.length} 组 · 「全部组…」= 目录页；回车/点击打开组，组内点成员加词` }));
+		}
 		this.list.replaceChildren(...rows);
 		if (!this.wrap.isConnected) document.body.append(this.wrap);
 		this.wrap.style.display = "";
@@ -1434,6 +1463,11 @@ class DBTagsAutoComplete {
 		}
 		const consumed = this.#consumeGroupTrigger();
 		openTagGroupBrowser(g, consumed ? this.el : null);
+	}
+
+	#openAllGroups() {
+		const consumed = this.#consumeGroupTrigger();
+		openTagGroupBrowser(null, consumed ? this.el : null);
 	}
 
 	#visible() {
@@ -1779,6 +1813,7 @@ class DBTagsAutoComplete {
 
 	#insert() {
 		if (!this.selected) return;
+		if (this.selected.all) { this.#openAllGroups(); return; }
 		if (this.selected.group) { this.#openGroup(this.selected.group.n); return; }
 		const tag = this.selected.tag;
 		const token = this.#token();
@@ -3229,12 +3264,19 @@ class GroupBrowser {
 		this.g = null;
 		this.title = $el("span.dbtags-ac-gb-title");
 		this.count = $el("span.dbtags-ac-gb-count");
+		// fix3: 详情页 ← 全部组目录
+		this._back = $el("span.dbtags-ac-gb-back.dbtags-ac-gb-btn", {
+			textContent: "‹ 全部组",
+			title: "返回全部组目录",
+		});
+		this._back.style.display = "none";
+		this._back.onclick = (e) => { e.stopPropagation(); this.showList(null); };
 		const close = $el("span.dbtags-ac-gb-x.dbtags-ac-gb-btn", {
 			textContent: "×",
 			title: "关闭组浏览器（Esc 同效）",
 		});
 		close.onclick = (e) => { e.stopPropagation(); this.close(); };
-		this.head = $el("div.dbtags-ac-gb-head", {}, [this.title, this.count, close]);
+		this.head = $el("div.dbtags-ac-gb-head", {}, [this._back, this.title, this.count, close]);
 		this.body = $el("div.dbtags-ac-gb-body");
 		this.el = $el("div.dbtags-ac-gbrowser", {}, [this.head, this.body]);
 		this.el.style.display = "none";
@@ -3279,11 +3321,19 @@ class GroupBrowser {
 		});
 		this._ro.observe(this.el);
 		this._key = (e) => {
-			if (e.key === "Escape" && this.el.style.display !== "none") {
+			if (e.key !== "Escape" || this.el.style.display === "none") return;
+			// 目录页: 有过滤词时 Esc 先清词, 再 Esc 才关窗
+			if (this._allInput && document.activeElement === this._allInput && this._allInput.value) {
 				e.preventDefault();
 				e.stopImmediatePropagation();
-				this.close();
+				this._allInput.value = "";
+				this._allKw = "";
+				this._renderAllRows();
+				return;
 			}
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			this.close();
 		};
 		document.addEventListener("keydown", this._key, true);
 		// persistent like the styler: no outside-mousedown auto-close — picking a
@@ -3291,7 +3341,9 @@ class GroupBrowser {
 		// not kill the browser. Only × / Esc close it.
 	}
 	open(g, anchorEl) {
+		if (!g) return this.showList(anchorEl); // fix3: openTagGroupBrowser(null) = 目录页
 		this.g = g;
+		this._back.style.display = "";
 		this.title.textContent = (g.zh || "tag_group:" + g.n) + "（" + g.n.replace(/_/g, " ") + "）";
 		this.count.textContent = index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…";
 		buildGroupBody(this.body, g, {
@@ -3301,8 +3353,63 @@ class GroupBrowser {
 			},
 		});
 		this.el.style.display = "";
+		this._place(anchorEl);
+	}
+	close() {
+		this.el.style.display = "none";
+	}
+	/* ---- fix3: 全部组目录页 ---- */
+	showList(anchorEl) {
+		this.g = null;
+		this._back.style.display = "none";
+		this.title.textContent = "标签组目录";
+		this.count.textContent = _groups && _groups.length ? `共 ${_groups.length} 组` : "数据加载中…";
+		const tools = $el("div.dbtags-ac-gtools");
+		this._allInput = $el("input.dbtags-ac-gfilter", { placeholder: "过滤组(中/英)…" });
+		this._allTot = $el("span.dbtags-ac-gallcount");
+		tools.append(this._allInput, this._allTot);
+		this._allGrid = $el("div.dbtags-ac-gallgrid");
+		this._allKw = "";
+		this._allInput.addEventListener("input", () => {
+			this._allKw = this._allInput.value.trim().toLowerCase();
+			this._renderAllRows();
+		});
+		this.body.replaceChildren(tools, this._allGrid);
+		this._renderAllRows();
+		this.el.style.display = "";
+		this._place(anchorEl);
+		requestAnimationFrame(() => this._allInput.focus());
+	}
+	_renderAllRows() {
+		const grid = this._allGrid;
+		if (!grid) return;
+		const kw = this._allKw || "";
+		const list = (_groups || [])
+			.filter((g) => !kw
+				|| g.zh.includes(kw)
+				|| g.n.includes(kw)
+				|| g.n.replace(/_/g, " ").includes(kw))
+			.sort((a, b) => groupHit(b) - groupHit(a) || groupTotal(b) - groupTotal(a));
+		grid.replaceChildren();
+		if (!(_groups || []).length) {
+			grid.append($el("div.dbtags-ac-empty", { textContent: "标签组数据尚未加载（稍候自动就绪）" }));
+		} else if (!list.length) {
+			grid.append($el("div.dbtags-ac-empty", { textContent: "无匹配的组" }));
+		} else {
+			for (const g of list) {
+				const card = buildGroupCard(g);
+				card.onclick = () => this.open(g, null); // 目录↔详情转换保持当前窗位
+				grid.append(card);
+			}
+		}
+		if (this._allTot) {
+			this._allTot.textContent = _groups && _groups.length && list.length
+				? `匹配 ${list.length}/${_groups.length} 组` : "";
+		}
+	}
+	/* 定位: 记忆几何 > 锚点(输入框旁) > CSS 默认; 尺寸记忆回填 */
+	_place(anchorEl) {
 		const gm = this._geom || {};
-		// 恢复记忆尺寸（resize:both 生成的内联尺寸刷新即丢，这里回填）
 		if (gm.w >= 320 && gm.h >= 200) {
 			this.el.style.width = gm.w + "px";
 			this.el.style.height = gm.h + "px";
@@ -3326,9 +3433,6 @@ class GroupBrowser {
 			this.el.style.top = "";
 			this.el.style.right = "";
 		}
-	}
-	close() {
-		this.el.style.display = "none";
 	}
 	_savePos() {
 		const r = this.el.getBoundingClientRect();
