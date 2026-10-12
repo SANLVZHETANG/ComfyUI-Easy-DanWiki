@@ -16,7 +16,7 @@ ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
-const DATA_V = "v0.4.7d";
+const DATA_V = "v0.4.7e";
 const ASSET_V = "a8";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
