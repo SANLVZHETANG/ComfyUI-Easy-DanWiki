@@ -2,24 +2,39 @@
   "sources": [
     {
       "name": "general", "cat": 0, "label": "通用", "default": true,
-      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags/clear_dantag_wiki.jsonl",
+      "wiki": [
+        "C:/Users/SANLVZHETANG/Desktop/todo/danbooru-general-tags/clear_dantag_wiki.jsonl",
+        "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-组背填/backfill_general.jsonl"
+      ],
       "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-翻译/out/translations.jsonl",
       "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
       "out": "0_general.json"
     },
     {
       "name": "meta", "cat": 5, "label": "meta(元数据)", "default": true,
-      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/sub-Comfyui-Easy-DanWiki-workflowtest/clear_wiki_ge50.jsonl",
+      "wiki": [
+        "C:/Users/SANLVZHETANG/Desktop/todo/sub-Comfyui-Easy-DanWiki-workflowtest/clear_wiki_ge50.jsonl",
+        "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-组背填/backfill_meta.jsonl"
+      ],
       "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-Comfyui-Easy-DanWiki-workflowtest/pipeline/meta_translations_ge50.jsonl",
       "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
       "out": "5_meta.json"
     },
     {
       "name": "character", "cat": 4, "label": "character(角色)", "default": true,
-      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/all dantag/wiki_checked_cat4_gt50.jsonl",
+      "wiki": [
+        "C:/Users/SANLVZHETANG/Desktop/todo/all dantag/wiki_checked_cat4_gt50.jsonl",
+        "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-组背填/backfill_character.jsonl"
+      ],
       "zh": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-llm命名/out/char_zh.jsonl",
       "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
       "out": "4_character.json"
+    },
+    {
+      "name": "copyright", "cat": 3, "label": "copyright(版权)", "default": true,
+      "wiki": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-组背填/backfill_copyright.jsonl",
+      "manifest": "C:/Users/SANLVZHETANG/Desktop/todo/sub-ComfyUI-Easy-DanWiki-爬图像/manifest.json",
+      "out": "6_copyright.json"
     }
   ]
 }

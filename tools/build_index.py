@@ -337,7 +337,9 @@ def build(limit, out_path, zh_dict_path=None, wiki_file=None,
     manifest_file = manifest_file or MANIFEST_FILE
     cat = CAT if cat is None else cat
     out_pending = out_pending or OUT_PENDING
-    rows = load_rows(wiki_file)
+    rows = []
+    for wf in wiki_files(wiki_file):
+        rows.extend(load_rows(wf))
     manifest = load_manifest(manifest_file)
     zh_dict = load_zh_dict(zh_dict_path)
     if zh_dict:
@@ -489,12 +491,22 @@ def build(limit, out_path, zh_dict_path=None, wiki_file=None,
     return report
 
 
+def wiki_files(wiki):
+    """A source's wiki field: single jsonl path OR a list of them (merge;
+    used by the group-backfill pipeline to append new member files without
+    touching the original crawl datasets). Strings remain valid."""
+    if isinstance(wiki, (list, tuple)):
+        return [w for w in wiki if w]
+    return [wiki]
+
+
 def _count_all(wiki_file):
     n = 0
-    with open(wiki_file, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                n += 1
+    for wf in wiki_files(wiki_file):
+        with open(wf, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    n += 1
     return n
 
 
@@ -573,7 +585,9 @@ def verify(out_path):
 
 def _load_sources():
     """Category sources to build. Multi-category via $DBTAGS_SOURCES (a JSON
-    file: {"sources":[{name,cat,wiki,zh,manifest,out},...]} or a bare list).
+    file: {"sources":[{name,cat,wiki,zh,manifest,out},...]} or a bare list);
+    `wiki` may be a string or a LIST of jsonl paths (merged, backfill).
+    `zh` may be omitted (no translations yet -> EN fallback).
     Falls back to a single legacy source from the per-run env vars."""
     if SOURCES_FILE:
         with open(SOURCES_FILE, "r", encoding="utf-8") as f:
@@ -609,10 +623,11 @@ def main():
     # extraction in every output can resolve cross-category [[targets]].
     union = set()
     for s in srcs:
-        for r in load_rows(s["wiki"]):
-            nm = r.get("name")
-            if nm:
-                union.add(nm)
+        for wf in wiki_files(s["wiki"]):
+            for r in load_rows(wf):
+                nm = r.get("name")
+                if nm:
+                    union.add(nm)
     log("union name-set across %d categories: %d tags" % (len(srcs), len(union)))
 
     reports = []
