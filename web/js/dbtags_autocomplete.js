@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a20"; /* keys are never reused - a19 is already live history */
+const ASSET_V = "a21";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2425,7 +2425,9 @@ class Hud {
 		this.zh = $el("div.dbtags-ac-hud-zh");
 		this.body = $el("div.dbtags-ac-hud-body");
 		this.gm = $el("div.dbtags-ac-panel-gm");
-		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.gm, this.img, this.zh, this.body]);
+		// fix17: belongs-to chips moved below the zh-name row (was above the image);
+		// only the HUD scroll order changes - the wiki panel keeps its own layout
+		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.img, this.zh, this.gm, this.body]);
 		this.el = $el("div.dbtags-ac-hud.dbtags-ac-hud--empty", {}, [this.head, this.tabs, this.scroll]);
 		// collapsed form: a small ball parked where the window used to be
 		this.ball = $el("div.dbtags-ac-hud-ball", {

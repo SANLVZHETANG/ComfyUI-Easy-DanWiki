@@ -1393,6 +1393,21 @@ html.dbtags-noblur .dbtags-ac-hud {
 	font-weight: 400;
 }
 
+/* fix17: belongs-to chips live under the zh name (hud scroll order img -> zh -> gm -> body);
+   keep the row small and tight so the primary name stays the loudest element.
+   These are hud-scoped - the wiki panel keeps its own sizing untouched. */
+.dbtags-ac-hud .dbtags-ac-panel-gm {
+	padding: 0;
+	gap: 3px 5px;
+}
+.dbtags-ac-hud .dbtags-ac-gm-cap {
+	font-size: calc(var(--dbtags-ac-font) - 3px);
+}
+.dbtags-ac-hud .dbtags-ac-gm-chip {
+	font-size: calc(var(--dbtags-ac-font) - 2px);
+	padding: 0 5px;
+}
+
 /* wiki body inline: the HUD window shows image + text directly */
 .dbtags-ac-hud-body {
 	color: var(--dbtags-ac-summary, var(--dbtags-ac-sub));
