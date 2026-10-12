@@ -1417,3 +1417,238 @@ html.dbtags-noblur .dbtags-ac-hud {
 	transform: scale(1.12);
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
+
+/* ================= tag groups (P19, v0.4.7) =================
+组候选行 / 组浏览器浮窗 / 组浏览器 HUD tab —— 全部取主题变量, 无硬编码色 */
+
+/* 候选列表里的组行 */
+.dbtags-ac-item--group .dbtags-ac-g-ico {
+	color: var(--dbtags-ac-highlight);
+	font-size: 12px;
+}
+.dbtags-ac-item--group .dbtags-ac-zh {
+	color: var(--dbtags-ac-sub);
+}
+
+/* wiki 面板 / HUD 的“属于组”chips 行 */
+.dbtags-ac-panel-gm {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	align-items: center;
+	padding: 3px 8px 0;
+}
+.dbtags-ac-panel-gm:empty {
+	display: none !important;
+}
+.dbtags-ac-gm-cap {
+	font-size: 10px;
+	color: var(--dbtags-ac-sub);
+	margin-right: 2px;
+}
+.dbtags-ac-gm-chip .dbtags-ac-g-ico {
+	color: var(--dbtags-ac-highlight);
+	margin-right: 2px;
+}
+
+/* 浮窗骨架 */
+.dbtags-ac-gbrowser {
+	position: fixed;
+	right: 24px;
+	top: 64px;
+	width: min(480px, 94vw);
+	height: min(78vh, 780px);
+	display: flex;
+	flex-direction: column;
+	background: var(--dbtags-ac-bg);
+	color: var(--dbtags-ac-text);
+	font-family: var(--dbtags-ac-family);
+	font-size: var(--dbtags-ac-font);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 8px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+	overflow: hidden;
+	z-index: 10020;
+}
+.dbtags-ac-gb-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--dbtags-ac-bg2);
+	border-bottom: 1px solid var(--dbtags-ac-border);
+	flex-shrink: 0;
+}
+.dbtags-ac-gb-title {
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dbtags-ac-gb-count {
+	font-size: 11px;
+	color: var(--dbtags-ac-count);
+	white-space: nowrap;
+}
+.dbtags-ac-gb-btn {
+	cursor: pointer;
+	padding: 0 7px;
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+.dbtags-ac-gb-btn:hover {
+	background: var(--dbtags-ac-toggle-hover);
+}
+.dbtags-ac-gb-body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+/* 工具行: 过滤 + 只看已收录 + 收起/展开全部 */
+.dbtags-ac-gtools {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--dbtags-ac-border);
+	background: var(--dbtags-ac-bg);
+	flex-shrink: 0;
+}
+.dbtags-ac-gfilter {
+	flex: 1 1 140px;
+	min-width: 0;
+	font: inherit;
+	font-size: 12px;
+	color: var(--dbtags-ac-text);
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	padding: 3px 8px;
+	outline: none;
+}
+.dbtags-ac-gfilter:focus {
+	border-color: var(--dbtags-ac-highlight);
+}
+.dbtags-ac-gopt {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	color: var(--dbtags-ac-sub);
+	white-space: nowrap;
+	cursor: pointer;
+}
+.dbtags-ac-gtoolbtn {
+	font-size: 11px;
+	line-height: 16px;
+	padding: 0 7px;
+	flex-shrink: 0;
+}
+
+/* 滚动区 + 节 */
+.dbtags-ac-gscroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 6px 8px 10px;
+}
+.dbtags-ac-gsec {
+	margin: 6px 0 2px;
+}
+.dbtags-ac-gsec-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 6px;
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 4px;
+	font-weight: bold;
+	font-size: 12px;
+	cursor: pointer;
+	user-select: none;
+}
+.dbtags-ac-gsec-head:hover {
+	background: var(--dbtags-ac-toggle-hover);
+}
+.dbtags-ac-gsec-caret {
+	font-size: 10px;
+	width: 11px;
+	color: var(--dbtags-ac-sub);
+	flex: 0 0 auto;
+}
+.dbtags-ac-gsec-en {
+	font-size: 10px;
+	color: var(--dbtags-ac-sub);
+	font-weight: normal;
+}
+.dbtags-ac-gsec-count {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--dbtags-ac-count);
+}
+
+/* 成员图格（图墙为唯一形态，无胶囊） */
+.dbtags-ac-gtiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+	gap: 6px;
+	padding: 6px 0 2px;
+}
+.dbtags-ac-gtile {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	background: var(--dbtags-ac-toggle-bg);
+	border: 1px solid var(--dbtags-ac-border);
+	border-radius: 6px;
+	cursor: pointer;
+	min-width: 0;
+}
+.dbtags-ac-gtile:hover {
+	background: var(--dbtags-ac-toggle-hover);
+}
+.dbtags-ac-gtile img {
+	width: 100%;
+	height: 64px;
+	object-fit: cover;
+	border-radius: 4px;
+	display: block;
+}
+.dbtags-ac-gtile--noimg .dbtags-ac-gtile-q {
+	height: 64px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	font-size: 20px;
+	color: var(--dbtags-ac-sub);
+	opacity: 0.55;
+}
+.dbtags-ac-gtile-zh {
+	font-size: 11px;
+	line-height: 1.2;
+	color: var(--dbtags-ac-text);
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dbtags-ac-gtile-en {
+	font-size: 9px;
+	line-height: 1.2;
+	color: var(--dbtags-ac-sub);
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dbtags-ac-gtile--added {
+	outline: 1px solid var(--dbtags-ac-highlight);
+	opacity: 0.75;
+}

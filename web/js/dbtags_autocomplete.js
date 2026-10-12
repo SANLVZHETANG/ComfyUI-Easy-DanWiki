@@ -10,14 +10,14 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.6";  // display only (status line); tag git with this
+const VERSION = "v0.4.7";  // display only (status line); tag git with this
 /* Split cache keys: DATA_V rides the category index JSONs + image URLs,
 ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
-const DATA_V = "v0.4.5";
-const ASSET_V = "a5";
+const DATA_V = "v0.4.7";
+const ASSET_V = "a6";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -35,6 +35,7 @@ const BASE_CAT_KEY = "0_general";           // always-loaded primary library
 const INDEX_URL = new URL("./data/0_general.json", import.meta.url).href + "?v=" + DATA_V;
 const CATALOG_URL = new URL("./data/catalog.json", import.meta.url).href + "?v=" + DATA_V;
 const catUrl = (file) => new URL("./data/" + file, import.meta.url).href + "?v=" + DATA_V;
+const GROUPS_URL = new URL("./data/tag_groups.json", import.meta.url).href + "?v=" + DATA_V;
 const PYSSSSS_AUTO = "/extensions/comfyui-custom-scripts/js/common/autocomplete.js";
 const SEPARATOR = ", ";
 const BODY_IDLE_MS = 300; // typing pause before the (expensive) wiki-body scan runs
@@ -76,6 +77,7 @@ function composeIndex() {
 		source_total: bm.source_total,
 	};
 	TAG_MAP = null; _mc = null; bodyDocs = null;   // rebuild derived views lazily
+	_gEpoch++;                                     // invalidate group hit-count cache
 }
 async function ensureCatLoaded(key) {
 	if (_catData[key] || key === BASE_CAT_KEY) return;
@@ -167,6 +169,85 @@ function getTagMap() {
 function normName(s) {
 	// normalize a [[target]] from wiki text to the canonical tag name
 	return s.toLowerCase().replace(/\s+/g, "_");
+}
+
+/* ---- tag groups (P19): the 91 live Danbooru tag_group pages ----
+   data/tag_groups.json carries ONLY structure (sections + member order +
+   per-bullet note). Member zh names, post counts and example-image flags
+   resolve at runtime from the composed tag index, so category toggles and
+   index rebuilds keep the group browser in sync for free. */
+let _groups = null;
+let _groupsLoading = null;
+const _groupMap = new Map();     // shortname -> group
+const _memberGroups = new Map(); // normName -> [[shortname, sectionTitle], ...]
+const _groupsReadyCbs = [];
+const _gHit = new Map();         // shortname -> { e: epoch, n: indexed count }
+let _gEpoch = 0;
+
+function groupsOn() {
+	return Config.get("groups", "true") !== "false";
+}
+function groupsLoaded() {
+	return !!_groups;
+}
+function onGroupsReady(cb) {
+	if (_groups) cb();
+	else _groupsReadyCbs.push(cb);
+}
+function getGroup(short) {
+	return _groupMap.get(short) || null;
+}
+function groupTotal(g) {
+	let t = 0;
+	for (const s of g.s) t += s[3].length;
+	return t;
+}
+function groupHit(g) {
+	const c = _gHit.get(g.n);
+	if (c && c.e === _gEpoch) return c.n;
+	const map = getTagMap();
+	let n = 0;
+	for (const s of g.s) for (const m of s[3]) if (map.has(normName(m[0]))) n++;
+	_gHit.set(g.n, { e: _gEpoch, n });
+	return n;
+}
+function memberGroupsOf(name) {
+	return _memberGroups.get(normName(name)) || null;
+}
+/* zh label for a member tile: zhtag -> first zh alias -> "" */
+function zhLabelOf(name) {
+	const t = index ? getTagMap().get(normName(name)) : null;
+	if (!t) return "";
+	return t.zhtag || listField(t.aliases_zh)[0] || listField(t.zh)[0] || "";
+}
+async function loadGroups() {
+	if (_groupsLoading) return _groupsLoading;
+	_groupsLoading = (async () => {
+		try {
+			const r = await fetch(GROUPS_URL);
+			if (r.status !== 200) throw new Error(r.status + " " + r.statusText);
+			const data = await r.json();
+			_groups = Array.isArray(data.groups) ? data.groups : [];
+			_groupMap.clear();
+			_memberGroups.clear();
+			for (const g of _groups) {
+				_groupMap.set(g.n, g);
+				for (const s of g.s) for (const m of s[3]) {
+					const k = normName(m[0]);
+					let arr = _memberGroups.get(k);
+					if (!arr) { arr = []; _memberGroups.set(k, arr); }
+					arr.push([g.n, s[0]]);
+				}
+			}
+			dlog("C", `tag groups loaded: ${_groups.length} groups`);
+		} catch (e) {
+			console.error("[dbtags] 标签组数据加载失败（组功能不可用，其余不受影响）:", e);
+			_groups = [];
+		}
+		if (_hud && _hud.refreshGroups) _hud.refreshGroups();  // restore grp: tab now that data landed
+		for (const cb of _groupsReadyCbs.splice(0)) { try { cb(); } catch { void 0; } }
+	})();
+	return _groupsLoading;
 }
 
 /* ---- config / theme (P6) ---- */
@@ -978,6 +1059,19 @@ function buildItemRow(item, word) {
 	return row;
 }
 
+/* one tag-group candidate row (no event wiring: caller adds onclick/hover) */
+function buildGroupRow(g) {
+	const hit = index ? groupHit(g) : 0;
+	const row = $el("div.dbtags-ac-item.dbtags-ac-item--group", { title: `tag_group:${g.n}` });
+	row.append(
+		$el("span.dbtags-ac-g-ico", { textContent: "▣" }),
+		$el("span.dbtags-ac-name", { textContent: g.zh || ("tag_group:" + g.n) }),
+		$el("span.dbtags-ac-zh", { textContent: g.zh ? " " + g.n.replace(/_/g, " ") : "" }),
+		$el("span.dbtags-ac-count", { textContent: `${hit}/${groupTotal(g)}`, title: "已收录/成员" }),
+	);
+	return row;
+}
+
 class DBTagsAutoComplete {
 	constructor(el, widget) {
 		this.el = el;
@@ -1077,7 +1171,8 @@ class DBTagsAutoComplete {
 		p.summary = $el("div.dbtags-ac-panel-summary");
 		p.links = $el("div.dbtags-ac-panel-links");
 		p.img = $el("img.dbtags-ac-panel-img");
-		p.el.append(p.head, p.summary, p.links, p.img);
+		p.gm = $el("div.dbtags-ac-panel-gm");
+		p.el.append(p.head, p.gm, p.summary, p.links, p.img);
 		return p;
 	}
 
@@ -1086,6 +1181,7 @@ class DBTagsAutoComplete {
 		p.tag = tag;
 		p.title.textContent = `${dispName(tag.name)}  ${fmtCount(tag.post_count)}`;
 		p.insert.textContent = this._addedTags.has(tag.name) ? "✓" : "+";
+		this.#renderMemberOf(p.gm, tag.name);
 		if (this.showSummary) {
 			this.#renderSummary(p, wikiText(tag) || "(无 wiki 正文)", hl || this._highlightTerms);
 			p.summary.style.display = "";
@@ -1215,6 +1311,10 @@ class DBTagsAutoComplete {
 		setTimeout(() => tip.remove(), 1500);
 	}
 
+	#renderMemberOf(box, name) {
+		if (box) renderMemberChips(box, name, (short) => this.#openGroup(short));
+	}
+
 	#renderSummary(p, text, hl) {
 		renderWikiBody(p.summary, text, hl || [], {
 			onLink: (t, e) => {
@@ -1265,6 +1365,75 @@ class DBTagsAutoComplete {
 		// word: spaces -> underscores, used for tag-name matching
 		// raw: original text kept for phrase/wiki matching
 		return { raw, word: raw.replace(/\s/g, "_") };
+	}
+
+	/* ---- tag-group trigger (P19): 组: / group: (ASCII or full-width colon) ----
+	   While the prefix fragment is live before the caret, the candidate list
+	   lists the 91 groups; Enter/click consumes the fragment and opens the
+	   floating group browser (independent of this popup's #hide lifecycle so
+	   picking a whole set of words survives inserts). */
+	#groupQuery() {
+		const before = this.helper.getBeforeCursor();
+		if (!before?.length) return null;
+		const m = before.match(/((?:组|group)[:：][^,;"|{}()\n。！？，、；:：]*)$/i);
+		if (!m) return null;
+		const i = before.length - m[0].length;
+		if (i > 0 && !/[,;"|{}()\n。！？，、；\s]/.test(before[i - 1])) return null;
+		return { frag: m[0], rest: m[0].replace(/^(?:组|group)[:：]/i, "").trim(), i, end: before.length };
+	}
+
+	#consumeGroupTrigger() {
+		const gq = this._gq;
+		this._gq = null;
+		if (!gq) return false;
+		const caret = this.el.selectionStart;
+		if (caret < gq.end) return false; // caret moved back since the query
+		this.el.focus();
+		this.el.setRangeText("", caret - gq.frag.length, caret, "end");
+		this.#sync();
+		return true;
+	}
+
+	#renderGroups(rest) {
+		const kw = rest.toLowerCase();
+		const list = _groups
+			.filter((g) => !kw
+				|| g.zh.includes(kw)
+				|| g.n.includes(kw)
+				|| g.n.replace(/_/g, " ").includes(kw))
+			.sort((a, b) => groupHit(b) - groupHit(a) || groupTotal(b) - groupTotal(a));
+		this.current = list.map((g) => {
+			const row = buildGroupRow(g);
+			const item = { group: g, el: row };
+			row.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.#openGroup(g.n);
+			});
+			row.addEventListener("mouseenter", () => this.#setSelected(item));
+			return item;
+		});
+		if (!this.current.length) {
+			this.#showEmpty(`无匹配的标签组（${rest}）`);
+			return;
+		}
+		const rows = this.current.map((it) => it.el);
+		rows.push($el("div.dbtags-ac-empty", { textContent: "共 91 组 · 回车/点击打开组浏览器，组内点成员加词" }));
+		this.list.replaceChildren(...rows);
+		if (!this.wrap.isConnected) document.body.append(this.wrap);
+		this.wrap.style.display = "";
+		_activeAC = this;
+		this.#place();
+		this.#setSelected(this.current[0]);
+	}
+
+	#openGroup(short) {
+		const g = getGroup(short);
+		if (!g) {
+			this.#showToast(short, "该标签组不在本地组目录里");
+			return;
+		}
+		const consumed = this.#consumeGroupTrigger();
+		openTagGroupBrowser(g, consumed ? this.el : null);
 	}
 
 	#visible() {
@@ -1610,6 +1779,7 @@ class DBTagsAutoComplete {
 
 	#insert() {
 		if (!this.selected) return;
+		if (this.selected.group) { this.#openGroup(this.selected.group.n); return; }
 		const tag = this.selected.tag;
 		const token = this.#token();
 		const after = this.helper.getAfterCursor();
@@ -1628,6 +1798,24 @@ class DBTagsAutoComplete {
 		// for the whole registry)
 		this._reapTick = (this._reapTick || 0) + 1;
 		if (this._reapTick % 8 === 0) reapDetachedInstances();
+		// tag-group trigger FIRST (组： full-width colon is a token delimiter in
+		// #token(), so the prefix must be recognized on the raw before-cursor
+		// text before the token guard can hide the popup)
+		const gq = groupsOn() ? this.#groupQuery() : null;
+		this._gq = gq;
+		if (gq) {
+			this._querySeq = (this._querySeq || 0) + 1;
+			clearTimeout(this._bodyTimer);
+			this._bodyTimer = null;
+			this._bodyPending = false;
+			if (groupsLoaded()) this.#renderGroups(gq.rest);
+			else {
+				this.#showEmpty("标签组数据加载中…");
+				onGroupsReady(() => this.#scheduleUpdate(0));
+			}
+			return;
+		}
+		this._gq = null;
 		const token = this.#token();
 		if (!token) {
 			this.#hide();
@@ -1946,6 +2134,7 @@ const SETTING_DEFS = {
 	hudOnType: "keep",
 	hudClose: "ball",
 	hudDblCloseAll: "true",
+	groups: "true",      // 组: / group: 触发标签组浏览器（91 组，data/tag_groups.json）
 	hudImg: "true",
 	hudWiki: "true",
 	hudImgPrior: "false",
@@ -2186,7 +2375,8 @@ class Hud {
 		this._imgShown = false;
 		this.zh = $el("div.dbtags-ac-hud-zh");
 		this.body = $el("div.dbtags-ac-hud-body");
-		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.img, this.zh, this.body]);
+		this.gm = $el("div.dbtags-ac-panel-gm");
+		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.gm, this.img, this.zh, this.body]);
 		this.el = $el("div.dbtags-ac-hud.dbtags-ac-hud--empty", {}, [this.head, this.tabs, this.scroll]);
 		// collapsed form: a small ball parked where the window used to be
 		this.ball = $el("div.dbtags-ac-hud-ball", {
@@ -2509,6 +2699,9 @@ class Hud {
 
 	#current() {
 		if (this.active === "__preview__") return this.preview;
+		if (this.active && String(this.active).startsWith("grp:")) {
+			return { grp: true, short: this.active.slice(4) };
+		}
 		if (this.active) return lookupTag(this.active);
 		return this.preview;
 	}
@@ -2536,7 +2729,12 @@ class Hud {
 		this.tabs.style.display = "";
 		for (const name of this.pins) {
 			const chip = $el("span.dbtags-ac-hud-tab" + (this.active === name ? ".dbtags-ac-hud-tab--active" : ""), { title: name });
-			chip.append($el("span.dbtags-ac-hud-tab-lbl", { textContent: dispName(name) }));
+			const isGrp = String(name).startsWith("grp:");
+			chip.append($el("span.dbtags-ac-hud-tab-lbl", {
+				textContent: isGrp
+					? "▣ " + ((getGroup(name.slice(4)) || {}).zh || name.slice(4))
+					: dispName(name),
+			}));
 			const x = $el("span.dbtags-ac-hud-tab-x", { textContent: "×" });
 			x.onclick = (e) => {
 				e.stopPropagation();
@@ -2594,8 +2792,60 @@ class Hud {
 		}, 1000);
 	}
 
+	/* ---- tag-group tabs (P19): pins prefixed "grp:"; cap 3, oldest evicted ---- */
+	openGroup(short) {
+		const key = "grp:" + short;
+		if (!this.pins.includes(key)) {
+			const grps = this.pins.filter((p) => p.startsWith("grp:"));
+			if (grps.length >= 3) {
+				const i = this.pins.indexOf(grps[0]);
+				this.pins.splice(i, 1);
+			}
+			this.pins.push(key);
+			if (this.pins.length > 60) this.pins.shift();
+		}
+		this.active = key;
+		this.#afterChange();
+	}
+
+	/* tag_groups.json landed after the HUD restored its tabs */
+	refreshGroups() {
+		if (this.active && String(this.active).startsWith("grp:")) {
+			this.#renderGrpTab(this.active.slice(4));
+		}
+	}
+
+	#renderGrpTab(short) {
+		const g = getGroup(short);
+		this.el.classList.remove("dbtags-ac-hud--empty");
+		this.title.textContent = g ? ((g.zh || "tag_group:" + short) + "（" + short.replace(/_/g, " ") + "）") : "标签组";
+		this.count.textContent = g ? (index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…") : "数据加载中…";
+		this.zh.style.display = "none";
+		this._imgSeq++; // invalidate any in-flight image load
+		this.#closeImgCard();
+		this.img.onload = this.img.onerror = null;
+		this.img.onmouseenter = this.img.onmouseleave = this.img.onclick = null;
+		this.img.classList.remove("dbtags-ac-hud-img--thumb");
+		this.img.src = "";
+		this.img.style.display = "none";
+		if (!g) {
+			this.body.replaceChildren($el("div.dbtags-ac-empty", { textContent: "标签组数据尚未加载（稍候自动就绪）" }));
+			return;
+		}
+		buildGroupBody(this.body, g, {
+			onInsert: (name, cell) => {
+				hudInsertTag(name);
+				cell.classList.add("dbtags-ac-gtile--added");
+			},
+		});
+	}
+
 	#renderCurrent() {
 		const tag = this.#current();
+		if (tag && tag.grp) {
+			this.#renderGrpTab(tag.short);
+			return;
+		}
 		if (!tag) {
 			this.el.classList.add("dbtags-ac-hud--empty");
 			this.title.textContent = "";
@@ -2615,6 +2865,7 @@ class Hud {
 		this.el.classList.remove("dbtags-ac-hud--empty");
 		this.title.textContent = dispName(tag.name);
 		this.count.textContent = fmtCount(tag.post_count);
+		renderMemberChips(this.gm, tag.name, (short) => this.openGroup(short));
 		const primary = tag.zhtag || listField(tag.aliases_zh)[0] || listField(tag.zh)[0] || "";
 		this.zh.textContent = primary;
 		this.zh.style.display = primary ? "" : "none";
@@ -2840,6 +3091,191 @@ class Hud {
 		Config.set("hud.w", this.el.offsetWidth);
 		Config.set("hud.h", this.el.offsetHeight);
 	}
+}
+
+/* ================= tag-group browser (P19) =================
+A floating window decoupled from the completion popup (same philosophy as the
+HUD/styler): typing 组: / group: or clicking a 属于组 chip opens it; picking
+members inserts through the last active completion input and the window stays
+open so a whole set of tags can be assembled in one pass. In HUD mode the
+browser can also live inside a group tab (Hud.openGroup). */
+
+/* shared group renderer: sections -> tile grid. ctx.onInsert(name, tileEl)
+   decides the insertion routing (inline popup input vs HUD ＋ button). */
+function buildGroupBody(host, g, ctx) {
+	host.replaceChildren();
+	const st = { q: "", onlyKnown: false, coll: {} };
+	const tools = $el("div.dbtags-ac-gtools");
+	const fin = $el("input.dbtags-ac-gfilter", { placeholder: "组内过滤(中/英)，如: 裙 / dress" });
+	fin.oninput = () => { st.q = fin.value.trim().toLowerCase(); render(); };
+	const known = $el("label.dbtags-ac-gopt");
+	const kcb = $el("input", { type: "checkbox" });
+	kcb.onchange = () => { st.onlyKnown = kcb.checked; render(); };
+	known.append(kcb, document.createTextNode("只看已收录"));
+	const cAll = $el("button.dbtags-ac-close.dbtags-ac-gtoolbtn", {
+		textContent: "收起全部",
+		onclick: () => setCollAll(true),
+	});
+	const eAll = $el("button.dbtags-ac-close.dbtags-ac-gtoolbtn", {
+		textContent: "展开全部",
+		onclick: () => setCollAll(false),
+	});
+	tools.append(fin, known, cAll, eAll);
+	function setCollAll(collapse) {
+		for (let i = 0; i < g.s.length; i++) {
+			if (collapse) st.coll[i] = 1;
+			else delete st.coll[i];
+		}
+		render();
+	}
+	const body = $el("div.dbtags-ac-gscroll");
+	function render() {
+		body.replaceChildren();
+		const map = index ? getTagMap() : new Map();
+		let shown = 0;
+		g.s.forEach((s, si) => {
+			const tiles = [];
+			for (const m of s[3]) {
+				const name = m[0];
+				const t = map.get(normName(name));
+				if (st.onlyKnown && !t) continue;
+				if (st.q && !(name.includes(st.q)
+					|| name.replace(/_/g, " ").includes(st.q)
+					|| (t && zhLabelOf(name).toLowerCase().includes(st.q)))) continue;
+				shown++;
+				tiles.push(tile(name, m[1], t));
+			}
+			if (!tiles.length) return;
+			const sec = $el("div.dbtags-ac-gsec");
+			const hd = $el("div.dbtags-ac-gsec-head", { title: "点击折叠/展开" });
+			hd.append(
+				$el("span.dbtags-ac-gsec-caret", { textContent: st.coll[si] ? "▸" : "▾" }),
+				$el("span.dbtags-ac-gsec-title", { textContent: s[1] || s[0] || "（无标题节）" }),
+				$el("span.dbtags-ac-gsec-en", { textContent: s[1] && s[0] ? " " + s[0] : "" }),
+				$el("span.dbtags-ac-gsec-count", { textContent: `${tiles.length}/${s[3].length}` }),
+			);
+			hd.onclick = () => { if (st.coll[si]) delete st.coll[si]; else st.coll[si] = 1; render(); };
+			const grid = $el("div.dbtags-ac-gtiles");
+			grid.append(...tiles);
+			sec.append(hd, grid);
+			body.append(sec);
+		});
+		if (!shown) body.append($el("div.dbtags-ac-empty", { textContent: "无匹配成员" }));
+	}
+	function tile(name, note, t) {
+		const cell = $el("div.dbtags-ac-gtile");
+		if (note) cell.title = note;
+		if (t && t.images && t.images.length) {
+			const img = $el("img", { loading: "lazy", alt: "" });
+			img.onerror = () => { img.remove(); cell.classList.add("dbtags-ac-gtile--noimg"); };
+			img.src = `/dbtags/image?tag=${encodeURIComponent(name)}&v=${DATA_V}&size=small`;
+			cell.append(img);
+		} else {
+			cell.classList.add("dbtags-ac-gtile--noimg");
+			cell.append($el("span.dbtags-ac-gtile-q", { textContent: "?" }));
+		}
+		const zh = zhLabelOf(name);
+		cell.append($el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") }));
+		cell.append($el("span.dbtags-ac-gtile-en", { textContent: name }));
+		cell.onclick = (e) => {
+			e.stopPropagation();
+			ctx.onInsert(name, cell);
+		};
+		return cell;
+	}
+	host.append(tools, body);
+	render();
+}
+
+/* member -> groups chips (wiki panel + HUD body); onOpen(short) decides routing */
+function renderMemberChips(box, name, onOpen) {
+	box.replaceChildren();
+	const gs = memberGroupsOf(name);
+	if (!gs || !gs.length) {
+		box.style.display = "none";
+		return;
+	}
+	box.style.display = "";
+	box.append($el("span.dbtags-ac-gm-cap", { textContent: "属于组" }));
+	for (const [short, sec] of gs.slice(0, 4)) {
+		const g = getGroup(short);
+		if (!g) continue;
+		const cap = $el("span.dbtags-ac-link.dbtags-ac-gm-chip", {
+			title: `打开标签组 ${short}（节：${sec || "—"}）`,
+		});
+		cap.append(
+			$el("span.dbtags-ac-g-ico", { textContent: "▣" }),
+			document.createTextNode(g.zh || short),
+		);
+		cap.addEventListener("click", (e) => {
+			e.stopPropagation();
+			onOpen(short);
+		});
+		box.append(cap);
+	}
+}
+
+class GroupBrowser {
+	constructor() {
+		this.g = null;
+		this.title = $el("span.dbtags-ac-gb-title");
+		this.count = $el("span.dbtags-ac-gb-count");
+		const close = $el("span.dbtags-ac-gb-x.dbtags-ac-gb-btn", {
+			textContent: "×",
+			title: "关闭组浏览器（Esc 同效）",
+		});
+		close.onclick = (e) => { e.stopPropagation(); this.close(); };
+		this.head = $el("div.dbtags-ac-gb-head", {}, [this.title, this.count, close]);
+		this.body = $el("div.dbtags-ac-gb-body");
+		this.el = $el("div.dbtags-ac-gbrowser", {}, [this.head, this.body]);
+		this.el.style.display = "none";
+		document.body.append(this.el);
+		this._key = (e) => {
+			if (e.key === "Escape" && this.el.style.display !== "none") {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				this.close();
+			}
+		};
+		document.addEventListener("keydown", this._key, true);
+		// persistent like the styler: no outside-mousedown auto-close — picking a
+		// set of words means clicking back into the input repeatedly, which must
+		// not kill the browser. Only × / Esc close it.
+	}
+	open(g, anchorEl) {
+		this.g = g;
+		this.title.textContent = (g.zh || "tag_group:" + g.n) + "（" + g.n.replace(/_/g, " ") + "）";
+		this.count.textContent = index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…";
+		buildGroupBody(this.body, g, {
+			onInsert: (name, cell) => {
+				hudInsertTag(name); // routes into the last active completion input
+				cell.classList.add("dbtags-ac-gtile--added");
+			},
+		});
+		this.el.style.display = "";
+		if (anchorEl && anchorEl.isConnected) {
+			const r = anchorEl.getBoundingClientRect();
+			let left = r.right + 10;
+			if (left + this.el.offsetWidth > window.innerWidth - 8) {
+				left = Math.max(8, window.innerWidth - this.el.offsetWidth - 8);
+			}
+			const maxTop = window.innerHeight - this.el.offsetHeight - 8;
+			this.el.style.left = left + "px";
+			this.el.style.top = Math.max(8, Math.min(r.top - 4, maxTop)) + "px";
+		} else {
+			this.el.style.left = "";
+			this.el.style.top = "";
+		}
+	}
+	close() {
+		this.el.style.display = "none";
+	}
+}
+
+let _groupBrowser = null;
+function openTagGroupBrowser(g, anchorEl) {
+	if (!_groupBrowser) _groupBrowser = new GroupBrowser();
+	_groupBrowser.open(g, anchorEl);
 }
 
 /* ================= appearance styler (P16) ================= */
@@ -3534,6 +3970,7 @@ class Styler {
 			this.#boolRow("图片优先", "panelImg", "false"),
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
+			this.#boolRow("标签组", "groups", "true", "输入 组: 或 group: 打开 Danbooru 标签组浏览器（91 组）；wiki 面板会显示 tag 的组归属"),
 		);
 		const hudOpRow = this.#sliderRow("悬浮窗不透明度", "hudOpacity", 25, 100, hudOpacityVal(), (x) => x + "%");
 		const hudOpRange = hudOpRow.querySelector("input");
@@ -4201,6 +4638,7 @@ app.registerExtension({
 		// fire-and-forget: a ~25MB fetch + parse must not gate ComfyUI startup;
 		// everything index-dependent is guarded (onIndexReady / #update)
 		void loadIndex();
+		void loadGroups();   // tag-group catalogue (structure only, ~0.5MB)
 		// pysssss suppression is independent of the index (also fixes the old
 		// failure path where a bad index left the other completer active)
 		disablePysssss();
