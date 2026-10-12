@@ -1377,7 +1377,8 @@ html.dbtags-noblur .dbtags-ac-hud {
 	font-size: calc(var(--dbtags-ac-font) + 1px);
 	font-weight: 700;
 	line-height: 1.35;
-	margin-bottom: 3px;
+	margin-bottom: 0; /* fix22: zh row sat 9px above the body but only 6px under the image;
+	                     drop the block margin so flex gap 6px rules both sides evenly */
 }
 /* small muted alias words inline, right of the primary name (no flex rework) */
 .dbtags-ac-hud-zh-alias {
