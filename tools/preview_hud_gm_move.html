@@ -5,19 +5,32 @@
   .dv{color:#8cf;font:11px monospace;margin:10px 0 2px;}
   .dbtags-ac-hud{position:static !important;width:300px;}
   .z3{zoom:3;width:auto;}
+  /* variants (base css already ships lvCurrent below; ladder only overrides) */
+  /* A: both -3px, same size, frame kept, tighter pad */
+  .vA .dbtags-ac-panel-gm{padding:0;gap:2px 4px;}
+  .vA .dbtags-ac-gm-cap{font-size:calc(var(--dbtags-ac-font) - 3px);}
+  .vA .dbtags-ac-gm-chip{font-size:calc(var(--dbtags-ac-font) - 3px);padding:0 2px;}
+  /* B: both -3px, frame removed, quiet */
+  .vB .dbtags-ac-panel-gm{padding:0;gap:2px 4px;}
+  .vB .dbtags-ac-gm-cap{font-size:calc(var(--dbtags-ac-font) - 3px);}
+  .vB .dbtags-ac-gm-chip{font-size:calc(var(--dbtags-ac-font) - 3px);padding:0 2px;background:transparent;border-color:transparent;border-radius:4px;}
+  /* C: B + muted text color (link blue still hints click, quietest) */
+  .vC .dbtags-ac-panel-gm{padding:0;gap:2px 4px;}
+  .vC .dbtags-ac-gm-cap{font-size:calc(var(--dbtags-ac-font) - 3px);}
+  .vC .dbtags-ac-gm-chip{font-size:calc(var(--dbtags-ac-font) - 3px);padding:0 2px;background:transparent;border-color:transparent;border-radius:4px;color:var(--dbtags-ac-sub);}
 </style></head><body>
 <script>
-const IMG = '<div style="height:64px;background:repeating-linear-gradient(45deg,#333,#333 12px,#3a3a3a 12px,#3a3a3a 24px);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#666;font:10px monospace">IMAGE</div>';
-const BODY = '<div class="dbtags-ac-hud-body">鞭打（Whipping）指以鞭类工具抽打的动作场景，常与束縛、 наказание 等构图要素相伴出现。</div>';
+const IMG = '<div style="height:56px;background:repeating-linear-gradient(45deg,#333,#333 12px,#3a3a3a 12px,#3a3a3a 24px);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#666;font:10px monospace">IMAGE</div>';
+const BODY = '<div class="dbtags-ac-hud-body">鞭打（Whipping）指以鞭类工具抽打的动作场景，常与束縛等构图要素相伴。</div>';
 const GMS = '<div class="dbtags-ac-panel-gm"><span class="dbtags-ac-gm-cap">属于组</span>' +
   '<span class="dbtags-ac-link dbtags-ac-gm-chip"><span class="dbtags-ac-g-ico">▣</span>动作动词</span>' +
   '<span class="dbtags-ac-link dbtags-ac-gm-chip"><span class="dbtags-ac-g-ico">▣</span>捆绑调教</span>' +
   '<span class="dbtags-ac-link dbtags-ac-gm-chip"><span class="dbtags-ac-g-ico">▣</span>体罚</span></div>';
-for (const z of ["", " z3"]) {
+for (const v of ["vA", "vB", "vC"]) {
   const d = document.createElement("div");
   d.innerHTML =
-    '<div class="dv">' + (z ? "3x" : "1x") + ' final (img -> zh -> gm -> body, hud-scoped small chips)</div>' +
-    '<div class="dbtags-ac-hud' + z + '" style="--dbtags-ac-font:13px">' +
+    '<div class="dv">' + v + '</div>' +
+    '<div class="dbtags-ac-hud ' + v + '" style="--dbtags-ac-font:13px">' +
       '<div class="dbtags-ac-hud-scroll">' + IMG +
         '<div class="dbtags-ac-hud-zh">鞭打<span class="dbtags-ac-hud-zh-alias">颜答/抽鞭</span></div>' +
         GMS + BODY +
