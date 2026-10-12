@@ -2425,9 +2425,9 @@ class Hud {
 		this.zh = $el("div.dbtags-ac-hud-zh");
 		this.body = $el("div.dbtags-ac-hud-body");
 		this.gm = $el("div.dbtags-ac-panel-gm");
-		// fix17: belongs-to chips moved below the zh-name row (was above the image);
-		// only the HUD scroll order changes - the wiki panel keeps its own layout
-		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.img, this.zh, this.gm, this.body]);
+		// fix20: belongs-to back ABOVE the image (user experiment); the quiet small
+		// style from fix17/18 stays - only the row position changes
+		this.scroll = $el("div.dbtags-ac-hud-scroll", {}, [this.gm, this.img, this.zh, this.body]);
 		this.el = $el("div.dbtags-ac-hud.dbtags-ac-hud--empty", {}, [this.head, this.tabs, this.scroll]);
 		// collapsed form: a small ball parked where the window used to be
 		this.ball = $el("div.dbtags-ac-hud-ball", {
