@@ -1404,11 +1404,14 @@ class DBTagsAutoComplete {
 	#groupQuery() {
 		const before = this.helper.getBeforeCursor();
 		if (!before?.length) return null;
-		const m = before.match(/((?:组|group)[:：][^,;"|{}()\n。！？，、；:：]*)$/i);
+		const m = before.match(/((?:组|tag[\s_]*group|group)[:：][^,;"|{}()\n。！？，、；:：]*)$/i);
 		if (!m) return null;
 		const i = before.length - m[0].length;
 		if (i > 0 && !/[,;"|{}()\n。！？，、；\s]/.test(before[i - 1])) return null;
-		return { frag: m[0], rest: m[0].replace(/^(?:组|group)[:：]/i, "").trim(), i, end: before.length };
+		/* fix21: also strip the tag group: / tag_group: spelled-out variants, so the
+		   danbooru-facing query form "Tag group:Sex acts" lands in the group trigger
+		   like its short cousins 组: and group: */
+		return { frag: m[0], rest: m[0].replace(/^(?:组|tag[\s_]*group|group)[:：]/i, "").trim(), i, end: before.length };
 	}
 
 	#consumeGroupTrigger() {
