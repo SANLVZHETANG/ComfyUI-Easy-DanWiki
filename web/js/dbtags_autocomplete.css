@@ -1672,18 +1672,20 @@ html.dbtags-noblur .dbtags-ac-hud {
    browser and directory grid keep the original 86px everywhere.
    fix33: user "未改变" on winxp - 72px was not enough since the 64px image still
    dominates a slim tile; hud scope goes 64px min / 48px image -> 6 columns in a
-   441px hud, popup grid untouched */
+   441px hud, popup grid untouched.
+   fix34: user page zoom runs ~160% - one more notch (56px min / 40px img / zh 9px)
+   so a ~465px hud fits 7 columns; zh data spaces are stripped in the display layer */
 .dbtags-ac-hud .dbtags-ac-gtiles {
-	grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
 }
 .dbtags-ac-hud .dbtags-ac-gtile img {
-	height: 48px;
+	height: 40px;
 }
 /* fix33: slim tiles squeeze zh names - hud scope drops zh to 10px and allows
    two clamped lines (line-clamp 2 keeps tiles same-height while 4-char names
    always render fully; popup grid untouched) */
 .dbtags-ac-hud .dbtags-ac-gtile-zh {
-	font-size: 10px;
+	font-size: 9px;
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;

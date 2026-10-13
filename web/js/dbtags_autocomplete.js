@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a28";
+const ASSET_V = "a29";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -3315,7 +3315,7 @@ function buildGroupBody(host, g, ctx) {
 			q.onclick = onView; // the no-image placeholder counts as the upper half too
 			cell.append(q);
 		}
-		const zh = zhLabelOf(name);
+		const zh = zhLabelOf(name).replace(/\s+/g, ""); // fix34: data spaces ("荷兰 角") would wrap weirdly in tiled display
 		cell.append($el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") }));
 		cell.append($el("span.dbtags-ac-gtile-en", { textContent: name }));
 		if (t && t.post_count != null) {
