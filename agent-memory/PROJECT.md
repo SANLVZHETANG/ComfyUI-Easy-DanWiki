@@ -4,12 +4,12 @@
 > 一切以实际代码 / git / 测试结果为准;下列均为已核实状态(截至最近一次核对)。
 
 ## 当前阶段
-**v0.4.7 编码完成待验收（2026-10-12）**：tag_group 标签组功能全链路落地（数据 `tag_groups.json` 91 组 + `组:`/`group:` 触发 + 组浏览器持久浮窗/HUD 组 tab + "属于组"反查;设计与验收清单见 `ROADMAP-tag-groups.md`）。未推。
-前版状态:v0.4.6 **已推**(2026-10-06):11 commit + tag v0.4.2–v0.4.6 全部上 GitHub,merge 保留用户网页侧 README 修正"v0.4.1喵"(横幅图更新),origin/master=**9791838**。功能线:真译文全量入索引(v0.4.4)→ display_clean 大扫除(v0.4.5)→ 角色 tag 染橙(v0.4.6)。等两件事:①用户浏览器验收(三批,见待办 1;图类仅需重启 ComfyUI——E: 图包已核实在位);②Release 图包资产更新(现行唯一 Release 挂 v0.4.1,其 10 资产未含 char 12,176 图;本机无 gh CLI,需网页手动或装 gh)。另有推后 1 commit(903168e 删 smoke/)待再推。
+**v0.4.8 已推送（2026-10-14，用户令"开始推送"，验收全关）**：v0.4.7 组链路(tag_groups 91 组+触发六形态+组浏览器/HUD 组 tab)+ v0.4.8 悬停预览特性链(feat1~feat4)+设置折叠组(feat2)全部验收通过——feat4 跳转残留、C5 日文正文悬案用户均已确认关闭。49+ 新文档 commit + tag v0.4.8 上了 GitHub(fast-forward,origin 无冲突)。开口=图包分包发布(`tools/pack_split.py`,方案已拍板待动工)+copyright 补图(全零 1,964,>500 版 426 优先)。
+前版:v0.4.6 已推(2026-10-06,origin=9791838,tag v0.4.2–v0.4.6);v0.4.7 的 commit 随本次一并上 GitHub(未单独打 tag,状态行 VERSION=v0.4.8 直接受众)。
 
 ## 当前任务
-- **UI 回退验收(用户侧)**:硬刷新后——①HUD 产品旧字形(chips 回归改造前样式、无别名行、图片居中);②**selfie / self-cosplay 的中文名在 HUD 恢复显示**(数据层从未丢:selfie=自拍/自拍照/手机自拍——消失是 fix11 的 HUD 渲染 bug,随回退根除);③fix4/fix5 搜索透行(nelson_mandela/黄苹果)保持有效。
-- **tag_group v0.4.7 fix1-3 验收**:折叠/竖字/节汉化/浮窗拖缩/目录页——fix1-2 已过,fix3(目录页/返回键/大窗自适应)待用户反馈。
+- **图包分包(等"打包"口令)**:`tools/pack_split.py` 按已拍板方案出包(方案记录见"重要契约"段),含逐库对账与 release/README.md 更新(禁改仓库根 README)。
+- **copyright 补图(分包后)**:>500 posts 426 个优先,补完发 `6_copyright_*` 首包;general 2,062 个随后出 update。
 - **验收三批(用户侧)**:①v0.4.3 组——重启 ComfyUI 后 B1/B2 角色图接口+C 组 HUD(矩阵 `sub-…-llm命名\acceptance_v0.4.3.md`);②v0.4.4/4.5 组——属性检索实测("社恐"→后藤一里、"北极熊"→早露)+卡片正文无 markup 噪音;③v0.4.6 组——角色 tag 橙色观感。**更正(2026-10-06 复核):E: 图包在位——`dataset/manifest.json`(10-04 合并版 22,007 条)+ tag_images 20,705 + tag_images_large 20,727 文件实存,图类验收仅需重启 ComfyUI;无图的 2/3 tag(hilbert_(pokemon) 案)是当年爬图未覆盖的数据事实,非 bug。**
 - **分享/截图功能**:已按用户指令**降为低优先级**(挂起;恢复时从 6 问拍板续)。
 
@@ -45,7 +45,7 @@
 - **正文翻译契约(2026-10-05 定版)**:`[[链接]]`/`{{模板}}`/外链逐字保留,`Kx` 占位符按成对数核对;译文层禁止给未验真名背书(name_cn 仅参考);bad_markup 行不参与 rerun,转典 `WHERE status='done'` 天然回退 who。
 - **显示层清理(2026-10-06)**:build_index `display_clean()` 剥画廊行/bbcode/hN./模板/内联 pools(N)——wiki_zh/summary 进索引前统一净身,DB 原文无损可回退;渲染层 `renderWikiBody` 只解析 `[[..]]`,chip "中文 (en)" 双写是 linkLabel 既有设计非残留。
 - **角色 tag 染橙(v0.4.6 定稿)**:cat=4 的下拉行名字+译名列、所有 wiki chip 直接用 `--dbtags-char-accent` 橙(基座亮橙/onlight 深橙自动适配全主题);**彩点、常驻色条两案均被用户否决**,再动外观先问。
-- **缓存键(v0.4.2 起)**:`DATA_V`=索引+图片 URL 键(仅数据重建时 bump);`ASSET_V`=CSS 键(样式改动 bump);`VERSION` 纯显示/跟 tag。js 本体走 ComfyUI ETag,三者都不管它。现值:**VERSION=v0.4.7 / DATA_V=v0.4.7e / ASSET_V=a19**(回退到 `59b09b1` 后重启 UI 线:fix15 zh 别名小字;教训=任何数据文件重建后立即核 DATA_V;**教训2(v0.4.7 fix15):ASSET_V 键永不复用**——a9 曾属 fix6 弃线,fix15 复撞后浏览器强缓存吐旧 css,用户看到的"字号变化"其实是被废弃的 fix6 形态;键值从 a19 起步跳过 a10..a18 全部历史)。
+- **缓存键(v0.4.2 起)**:`DATA_V`=索引+图片 URL 键(仅数据重建时 bump);`ASSET_V`=CSS 键(样式改动 bump);`VERSION` 纯显示/跟 tag。js 本体走 ComfyUI ETag,三者都不管它。现值(2026-10-14):**VERSION=v0.4.8 / DATA_V=v0.4.7e / ASSET_V=a37**(回退到 `59b09b1` 后重启 UI 线:fix15 zh 别名小字;教训=任何数据文件重建后立即核 DATA_V;**教训2(v0.4.7 fix15):ASSET_V 键永不复用**——a9 曾属 fix6 弃线,fix15 复撞后浏览器强缓存吐旧 css,用户看到的"字号变化"其实是被废弃的 fix6 形态;键值从 a19 起步跳过 a10..a18 全部历史)。
 - **正文检索通道已存在**:js `bodySearch`(summary+wiki_zh 拼 bodyDocs,CJK≥2字扫,fuzzy 末位,热度序 top20)。角色正文翻译=解锁属性检索("社恐"→后藤一里);31k→67k 扫描翻倍,上线后需 PERF 实测。
 - **server `_load_manifest` 是进程级单例缓存**:换 manifest 必须重启 ComfyUI 才生效(2026-10-04 实测教训)。
 - **长跑批铁律**:后台任务必须 `Start-Process` 脱离进程树发射(harness 后台 shell 会被 OpenCode 重启连坐击杀);PS 脚本带 BOM、重定向用绝对路径;rerun 兜底必须等全部分片退出。
@@ -80,14 +80,14 @@
 - 角色 ≥50 = 36,128 个已全量入图入典;图 12,176 张已随合并 manifest 部署 E:(2026-10-06 复核在位)。
 
 ## 待办 TODO(按优先级;用户指令:**已关闭项不再显示**)
-- [ ] **P1** 验收三批(见"当前任务";C5 悬案:用户报某 tag hover 出"日文正文",5,322 条无 who 回退英文 summary 属设计内,**待用户给出具体 tag 复现坐标**)。
-- [ ] **P2** 角色图包**发布**:GitHub 现行唯一 Release(挂 v0.4.1)的 10 个分卷资产仍是 8 月的图,**未含 char 12,176** → 按 **2026-10-13 分包方案**重打(四类 large 分包+small 总包,见"重要契约"段;`tools/pack_split.py`,禁改仓库根 README)。E: 部署位图包已在位,无需动;copyright 包待补图后首发。
+- [ ] **P1** 图包分包动工与补图链(见上方 P2 图包条目;用户口令驱动)。
+- [ ] **P2** 图包分包**发布动工**:按 2026-10-13 方案写 `tools/pack_split.py`(四类 large 分包+small 总包/分包,见"重要契约"段;对账;release/README.md 更新,禁改仓库根 README)。E: 部署位图包已在位,无需动;copyright 包待补图后首发。
 - [ ] **P2** **缺图按需联网取图方案**:详见 `ROADMAP-on-demand-image-cache.md`;对象=**数据缺口 2/3**(E: 图包误判已更正)+未来增量;**6 个决策点待拍板**(范围 A/B、缓存目录、默认档位、danbooru 账号、开关默认、磁盘上限);开工前置=donmai.us 可达性 curl 探测。
 - [ ] **P3** pixiv C 类 6,308 挂起表 × cat3 别名对账(可救《永恒久留姬》新 IP 无名头部 + B 类 431 括注歧义)。
 - [ ] **P4(可选)** U3:danbooru tag_aliases 爬取(别名链救援,匿名可行)。
 - [ ] **低** bad_markup 5 条手工修译文;`build_index.extract_zh` 的 `_JP_HANZI` 表误杀中文常用汉字(clownpiece 案)待修;67k bodyDocs 线性扫描 PERF 实测;死胶囊三方案待选;分享/截图挂起;离线回归脚本;**Styler `#set()` 键→影响域分派+rAF 合并**(css/search/popup/none 四组方案已拟)、**批次三按需再评估**(词库 gzip/bigram 倒排/Worker 解析)——原 `smoke/perf-backlog.md` 已删(903168e),全文见 `git show b5bb364:smoke/perf-backlog.md`。
 
 ## 下一步
-用户驱动:①三批验收(硬刷新验 ②③;图类=重启 ComfyUI 即测,E: 图包已核在位)→ ②ROADMAP 拍板(6 决策点,对象已收窄为数据缺口 2/3)→ ③Release 图包资产更新。新 tag 增量走 `PIPELINE.md`。
+用户驱动:①"打包"口令→分包动工→②copyright 补图→③Release 资产替换(网页手传,本机无 gh);ROADMAP 按需取图 6 决策点另行拍板。新 tag 增量走 `PIPELINE.md`。
 
 - **约定补充(2026-09-23)**:长时间后台任务运行期间,助手必须**链式轮询自播报**(每 ~10 分钟在回合内报告一次进度直至完成),另提供 `tools/watch.py`+`STATUS.txt` 供用户任意终端自看。
