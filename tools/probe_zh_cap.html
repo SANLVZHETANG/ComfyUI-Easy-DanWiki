@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../web/js/dbtags_autocomplete.css">
+<style>
+  body{background:#242424;padding:14px;margin:0;}
+  .dv{color:#8cf;font:11px monospace;margin:0 0 4px;}
+  #out{color:#0f0;font:12px monospace;white-space:pre;margin-top:10px;max-width:900px;}
+</style></head><body>
+<div id="hudwrap"></div>
+<div id="out"></div>
+<script>
+const E=(t,c)=>{const d=document.createElement("div");d.className=c;d.textContent=t;document.getElementById("hudwrap");return d;};
+const hudwrap=document.getElementById("hudwrap");
+hudwrap.innerHTML='<div class="dbtags-ac-hud" style="--dbtags-ac-font:16px;position:relative;z-index:auto;max-width:none;max-height:none;width:441px;height:420px;resize:none">'+
+ '<div class="dbtags-ac-hud-head"><span class="dbtags-ac-hud-title">图像构图</span><span class="dbtags-ac-hud-count">385</span></div>'+
+ '<div class="dbtags-ac-hud-body"><div class="dbtags-ac-gscroll"><div class="dbtags-ac-gsec"><div class="dbtags-ac-gsec-head"><span class="dbtags-ac-gsec-caret">▾</span><span class="dbtags-ac-gsec-title">取景视角</span><span class="dbtags-ac-gsec-en"> View Angle</span><span class="dbtags-ac-gsec-count">10</span></div><div class="dbtags-ac-gtiles" id="gt">'+
+   Array.from({length:6},(_,i)=>'<div class="dbtags-ac-gtile"><img alt="" style="background:repeating-linear-gradient(45deg,#333,#333 10px,#3a3a3a 10px,#3a3a3a 20px);border-radius:4px"><span class="dbtags-ac-gtile-zh">贴纸腮红</span><span class="dbtags-ac-gtile-en">from_behind</span><span class="dbtags-ac-gtile-cnt">161K</span></div>').join("")+
+ '</div></div></div></div></div>';
+requestAnimationFrame(()=>{
+  const hud=document.querySelector(".dbtags-ac-hud"),g=document.getElementById("gt");
+  const tile=g.querySelector(".dbtags-ac-gtile"),zh=tile.querySelector(".dbtags-ac-gtile-zh"),img=tile.querySelector("img");
+  const cs=x=>getComputedStyle(x),R=x=>Math.round(x.getBoundingClientRect().width);
+  const p=(["hudW:"+R(hud),"gtilesW:"+R(g),"cols:"+cs(g).gridTemplateColumns.split(" ").length,
+    "raw:"+cs(g).gridTemplateColumns.slice(0,40),
+    "tileW:"+R(tile),"tileDisp:"+cs(tile).display,"tileAlign:"+cs(tile).alignItems,
+    "zhW:"+R(zh),"zhFs:"+cs(zh).fontSize,"zhWs:"+cs(zh).whiteSpace,"zhDsp:"+cs(zh).display,
+    "zhMaxW:"+cs(zh).maxWidth,"zhOvr:"+cs(zh).overflow+" "+cs(zh).textOverflow,
+    "imgW:"+R(img),"imgH:"+cs(img).height,"imgHpx:"+img.clientHeight,
+    "dpr:"+devicePixelRatio,"hudFontVar:"+hud.style.getPropertyValue("--dbtags-ac-font")]);
+  document.getElementById("out").textContent=p.join("\n");
+});
+</script>
+</body></html>

@@ -1681,17 +1681,23 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-hud .dbtags-ac-gtile img {
 	height: 40px;
 }
-/* fix33: slim tiles squeeze zh names - hud scope drops zh to 10px and allows
-   two clamped lines (line-clamp 2 keeps tiles same-height while 4-char names
-   always render fully; popup grid untouched) */
+/* fix35: the REAL wrap-killer found by instrumented probe - fix19's
+   text-indent:2em on .dbtags-ac-hud-body computes to 32px (2em of the 16px
+   hud font) and is inherited by EVERY descendant line inside the group
+   tab, so a 56px tile had only ~24px of line width left (one CJK glyph +
+   ellipsis; the '双行' clamp cover-up couldn't help). The group wall's whole
+   subtree zeroes it; wiki body paragraphs keep the 2em first-line indent. */
+.dbtags-ac-hud .dbtags-ac-gtools,
+.dbtags-ac-hud .dbtags-ac-gscroll,
+.dbtags-ac-hud .dbtags-ac-gsec,
+.dbtags-ac-hud .dbtags-ac-gtile,
+.dbtags-ac-hud .dbtags-ac-gtile-zh {
+	text-indent: 0;
+}
 .dbtags-ac-hud .dbtags-ac-gtile-zh {
 	font-size: 9px;
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	white-space: normal;
-	line-height: 1.15;
-	overflow: hidden;
+	white-space: nowrap;
+	line-height: 1.2;
 }
 .dbtags-ac-gtile {
 	display: flex;
