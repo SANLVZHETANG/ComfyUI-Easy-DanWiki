@@ -2287,6 +2287,24 @@ function renderWikiBody(container, text, terms, h) {
 	}
 	for (const piece of expanded) {
 		if (piece.type === "link") {
+			/* fix24b: [[Tag group:xxx]] links route straight to the group catalogue -
+			   index has no tag_group:* entries, so without this the chip clicks dead */
+			let gShort = null;
+			if (/^tag[\s_-]*group[:：]/i.test(piece.target)) {
+				const cand = piece.target.replace(/^tag[\s_-]*group[:：]/i, "").trim().toLowerCase().replace(/\s+/g, "_");
+				if (_groupMap && _groupMap.get(cand)) gShort = cand;
+			}
+			if (gShort) {
+				const g = _groupMap.get(gShort);
+				const cap = $el("span.dbtags-ac-link.dbtags-ac-gm-chip", { title: `打开标签组 ${gShort}` });
+				cap.append($el("span.dbtags-ac-g-ico", { textContent: "▣" }), document.createTextNode(g.zh || gShort));
+				cap.addEventListener("click", (e) => {
+					e.stopPropagation();
+					h.onGroup?.(gShort, e);
+				});
+				container.append(cap);
+				continue;
+			}
 			const lab = linkLabel(piece.target, piece.label);
 			const cap = $el("span.dbtags-ac-link", { title: piece.target });
 			if (isCharTag(piece.target)) cap.classList.add("dbtags-ac-link--char");
