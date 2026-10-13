@@ -1686,6 +1686,15 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-hud .dbtags-ac-gtile--noimg .dbtags-ac-gtile-q {
 	height: 40px;
 }
+/* fix37: wheel dead-zone over the tile grid - in the hud group tab the
+   inner .dbtags-ac-gscroll NEVER scrolls itself (height:auto inside the block
+   hud-body; the real scroller is .dbtags-ac-hud-scroll), but its
+   overscroll-behavior:contain swallowed every chained wheel targeting a tile,
+   so scrolling felt dead exactly over the images; release contain in hud scope
+   so wheels chain into hud-scroll. The popup browser keeps its own contain. */
+.dbtags-ac-hud .dbtags-ac-gscroll {
+	overscroll-behavior: auto;
+}
 /* fix35: the REAL wrap-killer found by instrumented probe - fix19's
    text-indent:2em on .dbtags-ac-hud-body computes to 32px (2em of the 16px
    hud font) and is inherited by EVERY descendant line inside the group
