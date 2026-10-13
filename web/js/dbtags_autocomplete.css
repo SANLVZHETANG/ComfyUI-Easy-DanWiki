@@ -1717,6 +1717,16 @@ html.dbtags-noblur .dbtags-ac-hud {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+.dbtags-ac-gtile-cnt {
+	font-size: 9px;
+	line-height: 1.2;
+	color: var(--dbtags-ac-sub);
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: center;
+}
 .dbtags-ac-gtile--added {
 	outline: 1px solid var(--dbtags-ac-highlight);
 	opacity: 0.75;

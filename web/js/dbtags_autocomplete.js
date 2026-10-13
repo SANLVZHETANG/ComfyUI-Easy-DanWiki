@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a24";
+const ASSET_V = "a25";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -1075,26 +1075,24 @@ function buildItemRow(item, word) {
 
 /* one tag-group candidate row (no event wiring: caller adds onclick/hover) */
 function buildGroupRow(g) {
-	const hit = index ? groupHit(g) : 0;
 	const row = $el("div.dbtags-ac-item.dbtags-ac-item--group", { title: `tag_group:${g.n}` });
 	row.append(
 		$el("span.dbtags-ac-g-ico", { textContent: "▣" }),
 		$el("span.dbtags-ac-name", { textContent: g.zh || ("tag_group:" + g.n) }),
 		$el("span.dbtags-ac-zh", { textContent: g.zh ? " " + g.n.replace(/_/g, " ") : "" }),
-		$el("span.dbtags-ac-count", { textContent: `${hit}/${groupTotal(g)}`, title: "已收录/成员" }),
+		$el("span.dbtags-ac-count", { textContent: String(groupTotal(g)), title: "组内成员数" }),
 	);
 	return row;
 }
 
 /* fix3: 组目录页卡片（自适应多列栅格; button 形态, all:unset 防宿主注入竖字) */
 function buildGroupCard(g) {
-	const hit = index ? groupHit(g) : 0;
 	const card = $el("button.dbtags-ac-gcard", { title: `tag_group:${g.n}`, type: "button" });
 	card.append(
 		$el("span.dbtags-ac-gcard-h", {}, [
 			$el("span.dbtags-ac-gcard-ico", { textContent: "▣" }),
 			$el("span.dbtags-ac-gcard-zh", { textContent: g.zh || ("tag_group:" + g.n) }),
-			$el("span.dbtags-ac-gcard-cnt", { textContent: index ? `${hit}/${groupTotal(g)}` : "…", title: "已收录/成员" }),
+			$el("span.dbtags-ac-gcard-cnt", { textContent: String(groupTotal(g)), title: "组内成员数" }),
 		]),
 		$el("span.dbtags-ac-gcard-en", { textContent: g.n.replace(/_/g, " ") }),
 	);
@@ -2928,7 +2926,7 @@ class Hud {
 		const g = getGroup(short);
 		this.el.classList.remove("dbtags-ac-hud--empty");
 		this.title.textContent = g ? ((g.zh || "tag_group:" + short) + "（" + short.replace(/_/g, " ") + "）") : "标签组";
-		this.count.textContent = g ? (index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…") : "数据加载中…";
+		this.count.textContent = g ? String(groupTotal(g)) : "数据加载中…";
 		this.zh.style.display = "none";
 		this.gm.replaceChildren();
 		this.gm.style.display = "none"; /* fix25: the group sheet must not carry the previous tag's belongs-to chips */
@@ -3224,14 +3222,10 @@ browser can also live inside a group tab (Hud.openGroup). */
    decides the insertion routing (inline popup input vs HUD ＋ button). */
 function buildGroupBody(host, g, ctx) {
 	host.replaceChildren();
-	const st = { q: "", onlyKnown: false, coll: {} };
+	const st = { q: "", coll: {} };
 	const tools = $el("div.dbtags-ac-gtools");
 	const fin = $el("input.dbtags-ac-gfilter", { placeholder: "组内过滤(中/英)，如: 裙 / dress" });
 	fin.oninput = () => { st.q = fin.value.trim().toLowerCase(); render(); };
-	const known = $el("label.dbtags-ac-gopt");
-	const kcb = $el("input", { type: "checkbox" });
-	kcb.onchange = () => { st.onlyKnown = kcb.checked; render(); };
-	known.append(kcb, document.createTextNode("只看已收录"));
 	const cAll = $el("button.dbtags-ac-gtoolbtn", {
 		textContent: "收起全部",
 		onclick: () => setCollAll(true),
@@ -3240,7 +3234,7 @@ function buildGroupBody(host, g, ctx) {
 		textContent: "展开全部",
 		onclick: () => setCollAll(false),
 	});
-	tools.append(fin, known, cAll, eAll);
+	tools.append(fin, cAll, eAll);
 	function setCollAll(collapse) {
 		for (let i = 0; i < g.s.length; i++) {
 			if (collapse) st.coll[i] = 1;
@@ -3263,7 +3257,6 @@ function buildGroupBody(host, g, ctx) {
 				for (const m of s[3]) {
 					const name = m[0];
 					const t = map.get(normName(name));
-					if (st.onlyKnown && !t) continue;
 					if (st.q && !(name.includes(st.q)
 						|| name.replace(/_/g, " ").includes(st.q)
 						|| (t && zhLabelOf(name).toLowerCase().includes(st.q)))) continue;
@@ -3306,6 +3299,9 @@ function buildGroupBody(host, g, ctx) {
 		const zh = zhLabelOf(name);
 		cell.append($el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") }));
 		cell.append($el("span.dbtags-ac-gtile-en", { textContent: name }));
+		if (t && t.post_count != null) {
+			cell.append($el("span.dbtags-ac-gtile-cnt", { textContent: fmtCount(t.post_count), title: t.post_count + " images" }));
+		}
 		cell.onclick = (e) => {
 			e.stopPropagation();
 			ctx.onInsert(name, cell);
@@ -3430,7 +3426,8 @@ class GroupBrowser {
 		this.g = g;
 		this._back.style.display = "";
 		this.title.textContent = (g.zh || "tag_group:" + g.n) + "（" + g.n.replace(/_/g, " ") + "）";
-		this.count.textContent = index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…";
+		this.count.textContent = String(groupTotal(g));
+		this.count.title = "组内成员数";
 		buildGroupBody(this.body, g, {
 			onInsert: (name, cell) => {
 				hudInsertTag(name); // routes into the last active completion input
