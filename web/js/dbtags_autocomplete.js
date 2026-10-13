@@ -2253,8 +2253,12 @@ function showLinkPreview(name, event) {
 		if (Config.get("wikiHoverImg", "true") !== "false" && tag.images && tag.images.length) {
 			const im = $el("img", { alt: "" });
 			im.onerror = () => im.remove(); // miss/no-pack -> plain text card, never a broken slot
+			// cap the image height: a tall original would blow the card past the
+			// bottom after onload, which the clamp below measured too early
+			im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block"
+				+ `;max-height:${sizing === "large" ? 280 : 200}px;object-fit:cover`;
+			im.onload = () => clampPrev(); // re-clamp once the real height is known
 			im.src = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=${sizing}`;
-			im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block";
 			_linkPrevEl.append(im);
 		}
 		if (Config.get("wikiHoverText", "true") !== "false") {
@@ -2266,19 +2270,22 @@ function showLinkPreview(name, event) {
 				})
 			);
 		}
-		// v0.4.8 fix: display first (layout needed for measuring), then clamp
-		// into the viewport - the naive r.right+10 pushed the card past the
-		// right edge whenever the link sat near it (user: 出界); flip to the
-		// link's left side and clamp top at the window bounds
 		_linkPrevEl.style.display = "block"; // also fixes: class carries display:none - "" never un-hid it
-		const r = anchor.getBoundingClientRect();
-		const w = _linkPrevEl.offsetWidth;
-		let x = r.right + 10;
-		if (x + w > innerWidth - 8) x = Math.max(8, r.left - w - 10);
-		_linkPrevEl.style.left = x + "px";
-		const h = _linkPrevEl.offsetHeight;
-		_linkPrevEl.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - h - 8)) + "px";
+		clampPrev(anchor);
 	}, 250);
+}
+
+/* position the card beside the anchor: flip to the link's left side when the
+   right would overflow, clamp to the window bounds; re-run from img.onload
+   since the image grows the card AFTER the first measure */
+function clampPrev(anchor) {
+	const r = anchor.getBoundingClientRect();
+	const w = _linkPrevEl.offsetWidth;
+	let x = r.right + 10;
+	if (x + w > innerWidth - 8) x = Math.max(8, r.left - w - 10);
+	_linkPrevEl.style.left = x + "px";
+	const h = _linkPrevEl.offsetHeight;
+	_linkPrevEl.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - h - 8)) + "px";
 }
 function hideLinkPreview() {
 	clearTimeout(_linkPrevTimer);
