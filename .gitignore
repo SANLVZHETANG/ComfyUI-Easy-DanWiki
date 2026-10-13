@@ -17,3 +17,6 @@ NUL
 build_report.json
 links_pending_*.jsonl
 *.bak
+
+# internal agent memory (user-private; never publish)
+agent-memory/
