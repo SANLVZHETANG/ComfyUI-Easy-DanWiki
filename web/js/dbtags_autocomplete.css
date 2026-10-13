@@ -1667,6 +1667,12 @@ html.dbtags-noblur .dbtags-ac-hud {
 	gap: 6px;
 	padding: 6px 0 2px;
 }
+/* fix31: in the HUD's narrow group tab (user diagnytic: 441px hud -> only 4 fat
+   96px columns per auto-fill 86px) allow smaller columns so 5-6 fit; the popup
+   browser and directory grid keep the original 86px everywhere */
+.dbtags-ac-hud .dbtags-ac-gtiles {
+	grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
 .dbtags-ac-gtile {
 	display: flex;
 	flex-direction: column;

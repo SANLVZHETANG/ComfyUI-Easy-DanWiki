@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../web/js/dbtags_autocomplete.css">
+<style>
+  body{background:#242424;padding:14px;margin:0;display:flex;gap:24px;align-items:flex-start;}
+  .dv{color:#8cf;font:11px monospace;margin:0 0 4px;}
+  /* user diagnytic reproduced: hud is 441px wide -> body 417, gtiles 401 */
+</style></head><body>
+<script>
+const T=(z,e,c)=>'<div class="dbtags-ac-gtile"><img alt="" style="height:64px;background:repeating-linear-gradient(45deg,#333,#333 12px,#3a3a3a 12px,#3a3a3a 24px);border-radius:4px"><span class="dbtags-ac-gtile-zh">'+z+'</span><span class="dbtags-ac-gtile-en">'+e+'</span><span class="dbtags-ac-gtile-cnt">'+c+'</span></div>';
+const sec=(t,en,n,cnt)=>'<div class="dbtags-ac-gsec"><div class="dbtags-ac-gsec-head"><span class="dbtags-ac-gsec-caret">▾</span><span class="dbtags-ac-gsec-title">'+t+'</span><span class="dbtags-ac-gsec-en"> '+en+'</span><span class="dbtags-ac-gsec-count">'+cnt+'</span></div><div class="dbtags-ac-gtiles">'+
+  Array.from({length:n},(_,i)=>T(emo[i%emo.length],eng[i%eng.length],cnts[i%cnts.length])).join("")+'</div></div>';
+const emo=["贴纸腮红","全脸红晕","鼻梁红晕","愤怒青筋","害　羞","怒视","皱眉"],
+      eng=["blush_sticker…","full_face_blus…","nose_blush","anger_vein","embarrassed","glaring","scowl"],
+      cnts=["156K","30.4K","147K","80.0K","140K","12.3K","6.4K"];
+const tools='<div class="dbtags-ac-gtools"><input class="dbtags-ac-gfilter" placeholder="组内过滤(中/英)，如: 裙 / dress"><button class="dbtags-ac-gtoolbtn">收起全部</button><button class="dbtags-ac-gtoolbtn">展开全部</button></div>';
+function hud(label,force86){
+  const b=document.createElement("div");b.style.width="441px";b.className="w";
+  b.innerHTML='<div class="dv">'+label+' (441px hud)</div>'+
+  '<div class="dbtags-ac-hud" style="--dbtags-ac-font:16px;position:relative;z-index:auto;max-width:none;max-height:none;width:441px;height:520px;resize:none">'+
+   '<div class="dbtags-ac-hud-head"><span class="dbtags-ac-hud-title">面部 (face tags)</span><span class="dbtags-ac-hud-count">222</span></div>'+
+   '<div class="dbtags-ac-hud-body">'+tools+'<div class="dbtags-ac-gscroll">'+sec("主要","Main",2,force86?"2/2":"2")+sec("情绪","Emotions",10,force86?"75/75":"75")+'</div></div>'+
+  '</div>';
+  if (force86) b.querySelectorAll('.dbtags-ac-gtiles').forEach(t=>t.style.gridTemplateColumns='repeat(auto-fill,minmax(86px,1fr))');
+  document.body.append(b); return b;
+}
+hud("A before (86px min, current a26)",true);
+hud("B after  (72px min, fix31)");
+</script>
+</body></html>
