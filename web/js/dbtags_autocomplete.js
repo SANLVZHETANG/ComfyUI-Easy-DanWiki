@@ -2930,6 +2930,8 @@ class Hud {
 		this.title.textContent = g ? ((g.zh || "tag_group:" + short) + "（" + short.replace(/_/g, " ") + "）") : "标签组";
 		this.count.textContent = g ? (index ? `${groupHit(g)}/${groupTotal(g)} 已收录` : "索引加载中…") : "数据加载中…";
 		this.zh.style.display = "none";
+		this.gm.replaceChildren();
+		this.gm.style.display = "none"; /* fix25: the group sheet must not carry the previous tag's belongs-to chips */
 		this._imgSeq++; // invalidate any in-flight image load
 		this.#closeImgCard();
 		this.img.onload = this.img.onerror = null;
