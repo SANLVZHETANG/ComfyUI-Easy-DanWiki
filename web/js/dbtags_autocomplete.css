@@ -1682,6 +1682,11 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-gtile:hover {
 	background: var(--dbtags-ac-toggle-hover);
 }
+/* fix28: upper half (image/placeholder) opens the wiki sheet, lower half inserts */
+.dbtags-ac-gtile img,
+.dbtags-ac-gtile--noimg .dbtags-ac-gtile-q {
+	cursor: zoom-in;
+}
 .dbtags-ac-gtile img {
 	width: 100%;
 	height: 64px;

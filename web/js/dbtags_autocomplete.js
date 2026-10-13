@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a25";
+const ASSET_V = "a26";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2942,6 +2942,7 @@ class Hud {
 			return;
 		}
 		buildGroupBody(this.body, g, {
+			onShow: (name) => this.navigate(name),
 			onInsert: (name, cell) => {
 				hudInsertTag(name);
 				cell.classList.add("dbtags-ac-gtile--added");
@@ -3286,15 +3287,22 @@ function buildGroupBody(host, g, ctx) {
 	}
 	function tile(name, note, t) {
 		const cell = $el("div.dbtags-ac-gtile");
-		if (note) cell.title = note;
+		cell.title = (note ? note + "\n" : "") + "上图看详情 · 点文字加词";
+		const onView = (e) => {
+			e.stopPropagation();
+			(ctx.onShow || ctx.onInsert)(name, cell);
+		};
 		if (t && t.images && t.images.length) {
 			const img = $el("img", { loading: "lazy", alt: "" });
 			img.onerror = () => { img.remove(); cell.classList.add("dbtags-ac-gtile--noimg"); };
 			img.src = `/dbtags/image?tag=${encodeURIComponent(name)}&v=${DATA_V}&size=small`;
+			img.onclick = onView; // fix28: upper half opens the wiki sheet
 			cell.append(img);
 		} else {
 			cell.classList.add("dbtags-ac-gtile--noimg");
-			cell.append($el("span.dbtags-ac-gtile-q", { textContent: "?" }));
+			const q = $el("span.dbtags-ac-gtile-q", { textContent: "?" });
+			q.onclick = onView; // the no-image placeholder counts as the upper half too
+			cell.append(q);
 		}
 		const zh = zhLabelOf(name);
 		cell.append($el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") }));
@@ -3429,6 +3437,10 @@ class GroupBrowser {
 		this.count.textContent = String(groupTotal(g));
 		this.count.title = "组内成员数";
 		buildGroupBody(this.body, g, {
+			onShow: (name) => {
+				const t = lookupTag(name);
+				if (t && _hud) _hud.show(t, []); // wiki sheet window; no HUD open -> nothing (tiles keep add)
+			},
 			onInsert: (name, cell) => {
 				hudInsertTag(name); // routes into the last active completion input
 				cell.classList.add("dbtags-ac-gtile--added");
