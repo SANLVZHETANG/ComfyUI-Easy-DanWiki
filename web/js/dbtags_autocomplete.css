@@ -1669,9 +1669,27 @@ html.dbtags-noblur .dbtags-ac-hud {
 }
 /* fix31: in the HUD's narrow group tab (user diagnytic: 441px hud -> only 4 fat
    96px columns per auto-fill 86px) allow smaller columns so 5-6 fit; the popup
-   browser and directory grid keep the original 86px everywhere */
+   browser and directory grid keep the original 86px everywhere.
+   fix33: user "未改变" on winxp - 72px was not enough since the 64px image still
+   dominates a slim tile; hud scope goes 64px min / 48px image -> 6 columns in a
+   441px hud, popup grid untouched */
 .dbtags-ac-hud .dbtags-ac-gtiles {
-	grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.dbtags-ac-hud .dbtags-ac-gtile img {
+	height: 48px;
+}
+/* fix33: slim tiles squeeze zh names - hud scope drops zh to 10px and allows
+   two clamped lines (line-clamp 2 keeps tiles same-height while 4-char names
+   always render fully; popup grid untouched) */
+.dbtags-ac-hud .dbtags-ac-gtile-zh {
+	font-size: 10px;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	white-space: normal;
+	line-height: 1.15;
+	overflow: hidden;
 }
 .dbtags-ac-gtile {
 	display: flex;

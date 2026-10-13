@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a27";
+const ASSET_V = "a28";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2559,7 +2559,7 @@ class Hud {
 		this.#wireDrag();
 		this.syncLayout();
 		// restore tabs (kept tabs persist across restarts)
-		this.pins = (Config.get("hud.tabs", "") || "").split("|").map((x) => x.trim()).filter(Boolean).slice(0, 60);
+		this.pins = (Config.get("hud.tabs", "") || "").split("|").map((x) => x.trim()).filter((x) => x && x !== "undefined").slice(0, 60); // fix32: purge legacy undefined pins
 		const act = Config.get("hud.tabActive", "");
 		this.active = this.pins.includes(act) ? act : this.pins[0] || null;
 		this.#renderTabs();
@@ -2747,11 +2747,16 @@ class Hud {
 	pin() {
 		const t = this.#current();
 		if (!t) return;
-		if (!this.pins.includes(t.name)) {
-			this.pins.push(t.name);
+		/* fix32: a group sheet card has no .name - pinning there used to push
+		   undefined into pins and render an empty chip (bare ×). Group context
+		   now pins its grp: key instead; non-group tags keep the old path. */
+		const key = t.grp ? ("grp:" + t.short) : (t && t.name ? t.name : null);
+		if (!key) return;
+		if (!this.pins.includes(key)) {
+			this.pins.push(key);
 			if (this.pins.length > 60) this.pins.shift();
 		}
-		this.active = t.name;
+		this.active = key;
 		this.#afterChange();
 	}
 
@@ -2761,7 +2766,12 @@ class Hud {
 		const t = lookupTag(name);
 		if (!t) return;
 		const cur = this.#current();
-		if (cur && cur.name !== t.name && !this.pins.includes(cur.name)) this.pins.push(cur.name);
+		/* fix32: a group-sheet card has no .name; pushing cur.name there injected
+		   undefined and rendered an empty chip between the group tab and the tag
+		   tab (user: 通病, any group tab is affected). The group context pins its
+		   grp: key so the group survives as the source tab, browser semantics. */
+		const curKey = cur ? (cur.grp ? ("grp:" + cur.short) : cur.name) : null;
+		if (curKey && curKey !== t.name && !this.pins.includes(curKey)) this.pins.push(curKey);
 		if (!this.pins.includes(t.name)) this.pins.push(t.name);
 		if (this.pins.length > 60) this.pins.splice(0, this.pins.length - 60);
 		this.active = t.name;
@@ -2835,6 +2845,7 @@ class Hud {
 		}
 		this.tabs.style.display = "";
 		for (const name of this.pins) {
+			if (!name) continue; // fix32: never render an empty chip from legacy data
 			const chip = $el("span.dbtags-ac-hud-tab" + (this.active === name ? ".dbtags-ac-hud-tab--active" : ""), { title: name });
 			const isGrp = String(name).startsWith("grp:");
 			chip.append($el("span.dbtags-ac-hud-tab-lbl", {
