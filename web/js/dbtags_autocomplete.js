@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a33";
+const ASSET_V = "a34";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -1776,7 +1776,7 @@ class DBTagsAutoComplete {
 		const r = this.wrap.getBoundingClientRect();
 		this._toastEl.style.left = (r.right + 10) + "px";
 		this._toastEl.style.top = (r.top + 10) + "px";
-		this._toastEl.style.display = "";
+		this._toastEl.style.display = "block"; // fix: same class display:none trap as the preview card
 		clearTimeout(this._toastTimer);
 		this._toastTimer = setTimeout(() => {
 			if (this._toastEl) this._toastEl.style.display = "none";
@@ -2262,7 +2262,7 @@ function showLinkPreview(name, event) {
 		const r = anchor.getBoundingClientRect();
 		_linkPrevEl.style.left = r.right + 10 + "px";
 		_linkPrevEl.style.top = r.top + "px";
-		_linkPrevEl.style.display = "";
+		_linkPrevEl.style.display = "block"; // fix: class carries display:none - "" never un-hid it
 	}, 250);
 }
 function hideLinkPreview() {
