@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../web/js/dbtags_autocomplete.css">
+<style>
+  body{background:#242424;padding:14px;margin:0;display:flex;gap:20px;align-items:flex-start;}
+  .dv{color:#8cf;font:11px monospace;margin:0 0 4px;}
+</style></head><body>
+<script>
+/* v0.4.8 hover preview card: title + sample image + text excerpt.
+   four variants: small(240) w/ img, small no-img fallback, large(320) w/ img, large no-img */
+function card(w, withImg){
+  const im = withImg
+    ? '<img src="" alt="" style="width:100%;height:64px;background:repeating-linear-gradient(45deg,#333,#333 10px,#3a3a3a 10px,#3a3a3a 20px);border-radius:4px;margin-bottom:4px;display:block">'
+    : '';
+  return '<div class="dbtags-ac-preview" style="display:block;width:'+w+'px;position:relative;z-index:auto">'+
+    '<div class="dbtags-ac-preview-title">self_hug  1.3K</div>'+im+
+    '<div class="dbtags-ac-preview-text">角色拥抱自己，双手搭在身体的另一侧——通常是相对的。手搭手臂（hand_on_own_arm）或…</div></div>';
+}
+for (const [w,img] of [[240,1],[240,0],[320,1],[320,0]]){
+  const d=document.createElement("div");
+  d.innerHTML='<div class="dv">'+w+'px '+(img?"with img":"no img (onerror fallback)")+'</div>'+card(w,img);
+  document.body.append(d);
+}
+</script>
+</body></html>

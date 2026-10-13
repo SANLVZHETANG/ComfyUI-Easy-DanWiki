@@ -10,7 +10,7 @@ import { $el } from "../../../scripts/ui.js";
 // stylesheet: load dbtags_autocomplete.css (same dir as this file)
 /* versioning follows semver: MAJOR = incompatible changes,
 MINOR = new features, PATCH = fixes (current scheme set at v0.1.1) */
-const VERSION = "v0.4.7";  // display only (status line); tag git with this
+const VERSION = "v0.4.8";  // display only (status line); tag git with this label
 /* Split cache keys: DATA_V rides the category index JSONs + image URLs,
 ASSET_V rides the two stylesheet links. Bump DATA_V only when the data/image
 store actually changes (rebuild -> users re-fetch ~25MB by design); bump
@@ -1704,6 +1704,19 @@ class DBTagsAutoComplete {
 			}
 			this._previewEl.replaceChildren(
 				$el("div.dbtags-ac-preview-title", { textContent: `${dispName(tag.name)}  ${fmtCount(tag.post_count)}` }),
+			);
+			// v0.4.8 feat: hovering a wiki link shows the tag's sample image in the
+			// preview card; settings wikiHoverImg on/off + wikiHoverImgSize small/large
+			const sizing = Config.get("wikiHoverImgSize", "small") === "large" ? "large" : "small";
+			this._previewEl.style.width = (sizing === "large" ? 320 : 240) + "px";
+			if (Config.get("wikiHoverImg", "true") !== "false" && tag.images && tag.images.length) {
+				const im = $el("img", { alt: "" });
+				im.onerror = () => im.remove(); // miss/no-pack -> plain text card, never a broken slot
+				im.src = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=${sizing}`;
+				im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block";
+				this._previewEl.append(im);
+			}
+			this._previewEl.append(
 				$el("div.dbtags-ac-preview-text", {
 					textContent: wikiText(tag)
 						? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
@@ -1720,7 +1733,10 @@ class DBTagsAutoComplete {
 	#hidePreview() {
 		clearTimeout(this._previewTimer);
 		this._previewTimer = null;
-		if (this._previewEl) this._previewEl.style.display = "none";
+		if (this._previewEl) {
+			this._previewEl.style.display = "none";
+			this._previewEl.style.width = ""; // reset the large/small sizing back to the 240px class default
+		}
 	}
 
 	#imgHoverIn(tag, img) {
@@ -2205,6 +2221,8 @@ const SETTING_DEFS = {
 	enabledCats: "",   // CSV of category keys to load; "" = follow catalog.json defaults (通用 + meta)
 	imgMode: "large",
 	hudImgMode: "large",
+	wikiHoverImg: "true",    // v0.4.8: hover preview card shows the tag's sample image
+	wikiHoverImgSize: "small", // small/large
 	navMode: "A",
 	widthMode: "fixed",
 	fontFamily: "MapleMonoNormal-NF-CN-Medium",
@@ -3608,6 +3626,8 @@ const HELP = {
 	hudClose: "点击 × 关闭悬浮窗时：变为悬浮球＝缩成一颗小球、点小球恢复原画面；直接关闭＝彻底关掉，下次输入时再出现。",
 	hudDblCloseAll: "双击任意标签页 = 关闭所有标签页、悬浮窗清空成空白页；关 = 双击只是切换标签。",
 	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图。两种模式下鼠标移到图上会立即显示「查看大图」，停留约 0.2 秒自动弹出原尺寸大图卡（移开或 Esc 关闭，点击图也可打开）。",
+	wikiHoverImg: "悬停在 wiki 正文或候选列表的链接上时，预览卡会先显示该 tag 的示例图再给摘要；关闭后只显示文字预览。",
+	wikiHoverImgSize: "悬停预览卡的示例图尺寸：小图=轻量缩略（默认、秒出），大图=显示原尺寸示例图。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
 };
@@ -4259,6 +4279,8 @@ class Styler {
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("标签组", "groups", "true", "输入 组: 或 group: 打开 Danbooru 标签组浏览器（91 组）；wiki 面板会显示 tag 的组归属"),
+			this.#boolRow("悬停预览图", "wikiHoverImg", "true", "悬停在 wiki 链接上时预览卡显示该 tag 的示例图（0.25 秒停留防抖）"),
+			this.#comboRow("悬停图尺寸", "wikiHoverImgSize", [["small", "小图（秒出）"], ["large", "大图"]], "small"),
 		);
 		const hudOpRow = this.#sliderRow("悬浮窗不透明度", "hudOpacity", 25, 100, hudOpacityVal(), (x) => x + "%");
 		const hudOpRange = hudOpRow.querySelector("input");
