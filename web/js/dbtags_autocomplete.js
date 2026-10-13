@@ -2172,6 +2172,7 @@ const SETTING_DEFS = {
 	wikiHoverImg: "true",    // v0.4.8: hover preview card shows the tag's sample image
 	wikiHoverImgSize: "small", // small/large
 	wikiHoverText: "true",   // v0.4.8: hover preview card keeps the text excerpt
+	wikiHover: "true",       // v0.4.8: master switch - off = no card at all, native title only
 	navMode: "A",
 	widthMode: "fixed",
 	fontFamily: "MapleMonoNormal-NF-CN-Medium",
@@ -2226,6 +2227,9 @@ const GROUP_REF = /\btag[\s_-]*group\s*[:：]\s*([A-Za-z0-9_\-]+(?:[ ]+[A-Za-z0-
 let _linkPrevEl = null, _linkPrevTimer = null;
 function showLinkPreview(name, event) {
 	hideLinkPreview();
+	// v0.4.8 feat3: the master switch - off means NO card at all (the browser's
+	// native title tooltip remains, which is what the user wants when fully off)
+	if (Config.get("wikiHover", "true") === "false") return;
 	// currentTarget is nulled by the browser once dispatch ends: capture the
 	// anchor synchronously or the delayed read throws and the preview never
 	// shows (and bail if the row was re-rendered away before the timer)
@@ -3637,6 +3641,7 @@ const HELP = {
 	wikiHoverImg: "悬停在 wiki 正文或候选列表的链接上时，预览卡会先显示该 tag 的示例图再给摘要；关闭后只显示文字预览。",
 	wikiHoverImgSize: "悬停预览卡的示例图尺寸：小图=轻量缩略（默认、秒出），大图=显示原尺寸示例图。",
 	wikiHoverText: "悬停预览卡里正文摘要文字的开关；预览图与摘要都关时，卡只留标题与计数一行。",
+	wikiHover: "悬停预览的总开关：关＝悬停链接不再弹预览卡，只保留系统自带的名称小提示。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
 };
@@ -4342,6 +4347,20 @@ class Styler {
 			// carriers (panel buried it inside cardRows; user: 悬浮窗没有), and
 			// option labels stay plain (user: 不要"秒出"字样)
 			this.#foldRow("悬停预览", [
+				// feat3: master switch greys the sub-rows when off (native disabled)
+				(() => {
+					const cb = $el("input", { type: "checkbox" });
+					cb.checked = Config.get("wikiHover", "true") !== "false";
+					const sub = [
+						this.#boolRow("显示预览图", "wikiHoverImg", "true", "悬停 wiki 链接时预览卡显示该 tag 的示例图（0.25 秒防抖）"),
+						this.#comboRow("预览图尺寸", "wikiHoverImgSize", [["small", "小图"], ["large", "大图"]], "small"),
+						this.#boolRow("显示文字摘要", "wikiHoverText", "true", "预览卡里的正文摘要开关；图与摘要都关时卡只留标题与计数"),
+					];
+					const grey = () => sub.forEach((r) => r.querySelectorAll("input,select").forEach((c) => { c.disabled = !cb.checked; }));
+					cb.onchange = () => { this.#set("wikiHover", cb.checked); grey(); };
+					grey();
+					return $el("div.dbtags-ac-styler-row", {}, [this.#lab("启用预览卡", "wikiHover", "总开关：关＝悬停链接不弹预览卡（保留系统小提示）"), cb]);
+				})(),
 				this.#boolRow("显示预览图", "wikiHoverImg", "true", "悬停 wiki 链接时预览卡显示该 tag 的示例图（0.25 秒防抖）"),
 				this.#comboRow("预览图尺寸", "wikiHoverImgSize", [["small", "小图"], ["large", "大图"]], "small"),
 				this.#boolRow("显示文字摘要", "wikiHoverText", "true", "预览卡里的正文摘要开关；图与摘要都关时卡只留标题与计数"),
