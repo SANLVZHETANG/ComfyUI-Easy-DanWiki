@@ -1629,6 +1629,7 @@ class DBTagsAutoComplete {
 
 	/* ---- wiki navigation (P14): A = expand panels to the right, B = replace ---- */
 	#navTo(name) {
+		hideLinkPreview(); // v0.4.8: link is about to vanish in a re-render, drop its preview
 		if (_hudOn) {
 			_hud?.navigate(name); // HUD replaces the panel: navigation goes to the floating window
 			return;
@@ -2807,6 +2808,7 @@ class Hud {
 	/* wiki link click, browser semantics: the source (if an unpinned preview)
 	and the destination both become tabs, and the destination is activated */
 	navigate(name) {
+		hideLinkPreview(); // v0.4.8: the old anchor dies in this re-render, drop its preview
 		const t = lookupTag(name);
 		if (!t) return;
 		const cur = this.#current();
@@ -2956,6 +2958,7 @@ class Hud {
 
 	/* ---- tag-group tabs (P19): pins prefixed "grp:"; cap 3, oldest evicted ---- */
 	openGroup(short) {
+		hideLinkPreview(); // v0.4.8: same re-render hygiene as navigate()
 		const key = "grp:" + short;
 		if (!this.pins.includes(key)) {
 			const grps = this.pins.filter((p) => p.startsWith("grp:"));
