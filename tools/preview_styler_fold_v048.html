@@ -12,7 +12,7 @@ const lab=(t)=>'<div class="dbtags-ac-styler-label">'+t+'</div>';
 const bool=(t,ck)=>'<div class="dbtags-ac-styler-row">'+lab(t)+'<input type="checkbox"'+(ck?" checked":"")+'></div>';
 const combo=(t,v)=>'<div class="dbtags-ac-styler-row">'+lab(t)+'<select><option>'+v+'</option></select></div>';
 const fold=(open)=>'<details class="dbtags-ac-styler-fold"'+(open?" open":"")+'><summary>悬停预览</summary>'+
-  bool("显示预览图",1)+combo("预览图尺寸","小图（秒出）")+bool("显示文字摘要",1)+'</details>';
+  bool("显示预览图",1)+combo("预览图尺寸","小图")+bool("显示文字摘要",1)+'</details>';
 const wikicard=(foldopen)=>'<div style="width:430px;background:var(--dbtags-ac-bg);border:1px solid var(--dbtags-ac-border);border-radius:8px;padding:10px">'+
   '<div class="dv" style="color:#5a5;font:11px monospace;margin:0 0 8px;">wiki 面板（卡片）</div><div class="dbtags-ac-styler-subgroup">'+
   bool("wiki 正文",1)+bool("示例图",1)+combo("示例图尺寸","大图")+fold(foldopen)+bool("跳转胶囊",1)+

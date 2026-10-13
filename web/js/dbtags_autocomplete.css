@@ -649,7 +649,7 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-styler-fold > summary {
 	cursor: pointer;
 	user-select: none;
-	font-weight: bold;
+	/* v0.4.8 feat2 rework: no bold - the fold sits between plain rows (user) */
 	padding: 2px 0;
 }
 .dbtags-ac-styler-fold[open] > summary {

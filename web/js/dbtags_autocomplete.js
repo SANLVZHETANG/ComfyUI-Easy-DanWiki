@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a35";
+const ASSET_V = "a36";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -4295,11 +4295,6 @@ class Styler {
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("标签组", "groups", "true", "输入 组: 或 group: 打开 Danbooru 标签组浏览器（91 组）；wiki 面板会显示 tag 的组归属"),
-			this.#foldRow("悬停预览", [
-				this.#boolRow("显示预览图", "wikiHoverImg", "true", "悬停 wiki 链接时预览卡显示该 tag 的示例图（0.25 秒防抖）"),
-				this.#comboRow("预览图尺寸", "wikiHoverImgSize", [["small", "小图（秒出）"], ["large", "大图"]], "small"),
-				this.#boolRow("显示文字摘要", "wikiHoverText", "true", "预览卡里的正文摘要开关；图与摘要都关时卡只留标题与计数"),
-			]),
 		);
 		const hudOpRow = this.#sliderRow("悬浮窗不透明度", "hudOpacity", 25, 100, hudOpacityVal(), (x) => x + "%");
 		const hudOpRange = hudOpRow.querySelector("input");
@@ -4343,6 +4338,14 @@ class Styler {
 			carrierRow,
 			cardRows,
 			hudRows,
+			// feat2 rework: the hover-preview group must be visible under BOTH
+			// carriers (panel buried it inside cardRows; user: 悬浮窗没有), and
+			// option labels stay plain (user: 不要"秒出"字样)
+			this.#foldRow("悬停预览", [
+				this.#boolRow("显示预览图", "wikiHoverImg", "true", "悬停 wiki 链接时预览卡显示该 tag 的示例图（0.25 秒防抖）"),
+				this.#comboRow("预览图尺寸", "wikiHoverImgSize", [["small", "小图"], ["large", "大图"]], "small"),
+				this.#boolRow("显示文字摘要", "wikiHoverText", "true", "预览卡里的正文摘要开关；图与摘要都关时卡只留标题与计数"),
+			]),
 			this.#boolRow("括号键导航", "bracketNav", "true"),
 		);
 		syncCarrier();
