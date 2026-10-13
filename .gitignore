@@ -20,3 +20,6 @@ links_pending_*.jsonl
 
 # internal agent memory (user-private; never publish)
 agent-memory/
+
+# dev-side tooling & preview materials (not needed at runtime, user-private)
+tools/
