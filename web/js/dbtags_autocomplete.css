@@ -460,7 +460,11 @@ html.dbtags-noblur .dbtags-ac-hud {
 /* hover preview tooltip (P14) — display only, never intercept clicks */
 .dbtags-ac-preview {
 	position: fixed;
-	z-index: 10001;
+	/* v0.4.8 fix: 10001 sat UNDER the hud window (10006) and the cooperation
+	   list (10010) - hovering a hud wiki link popped the card but the hud buried
+	   it (user: 放上去没有图片). 10008 clears hud+list panels while still
+	   yielding to the hover big-image card (10015). */
+	z-index: 10008;
 	display: none;
 	width: 240px;
 	background: rgba(var(--dbtags-ac-bg2-rgb), var(--dbtags-ac-alpha));
