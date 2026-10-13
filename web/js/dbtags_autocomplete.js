@@ -3272,7 +3272,7 @@ function buildGroupBody(host, g, ctx) {
 				$el("span.dbtags-ac-gsec-caret", { textContent: open ? "▾" : "▸" }),
 				$el("span.dbtags-ac-gsec-title", { textContent: s[1] || s[0] || "（无标题节）" }),
 				$el("span.dbtags-ac-gsec-en", { textContent: s[1] && s[0] ? " " + s[0] : "" }),
-				$el("span.dbtags-ac-gsec-count", { textContent: open ? `${tiles.length}/${s[3].length}` : `${s[3].length}` }),
+				$el("span.dbtags-ac-gsec-count", { textContent: open && st.q ? `${tiles.length}/${s[3].length}` : String(s[3].length) }),
 			);
 			hd.onclick = () => { if (st.coll[si]) delete st.coll[si]; else st.coll[si] = 1; render(); };
 			sec.append(hd);
