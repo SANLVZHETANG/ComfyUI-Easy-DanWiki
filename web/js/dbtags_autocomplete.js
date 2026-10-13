@@ -1350,6 +1350,7 @@ class DBTagsAutoComplete {
 				if (e && (e.ctrlKey || e.metaKey)) this.insertWikiTag(t);
 				else this.#navTo(t);
 			},
+			onGroup: (short) => this.#openGroup(short),
 			onHover: (t, e) => (t ? this.#showPreview(t, e) : this.#hidePreview()),
 		});
 	}
@@ -2249,8 +2250,13 @@ function highlightSeg(text, terms) {
 	};
 }
 
+/* fix24: bare "Tag group:xxx" mentions inside wiki text become clickable group
+   chips (only when the short name actually maps to a group in the catalogue -
+   unknown text stays plain, no dead links) */
+const GROUP_REF = /\btag[\s_-]*group\s*[:：]\s*([A-Za-z0-9_\-]+(?:[ ]+[A-Za-z0-9_\-]+)*)/gi;
+
 /* render wiki text into container: plain runs + clickable [[links]].
-handlers: { onLink(target, event), onHover(target|null, event) } — optional;
+handlers: { onLink(target, event), onGroup(short, event), onHover(target|null, event) } — optional;
 onLink receives the click event so callers can honour Ctrl/Cmd = quick-add */
 function renderWikiBody(container, text, terms, h) {
 	container.replaceChildren();
@@ -2264,7 +2270,22 @@ function renderWikiBody(container, text, terms, h) {
 		last = m.index + m[0].length;
 	}
 	if (last < text.length) pieces.push({ type: "text", text: text.slice(last) });
+	/* fix24: second pass - split text pieces on bare "Tag group:xxx" group refs
+	   (only if the short name maps to a real group in the catalogue) */
+	const expanded = [];
 	for (const piece of pieces) {
+		if (piece.type !== "text") { expanded.push(piece); continue; }
+		let tLast = 0;
+		for (const m of piece.text.matchAll(GROUP_REF)) {
+			const short = m[1].trim().toLowerCase().replace(/\s+/g, "_");
+			if (!_groupMap || !_groupMap.get(short)) continue;
+			if (m.index > tLast) expanded.push({ type: "text", text: piece.text.slice(tLast, m.index) });
+			expanded.push({ type: "group", short, label: m[1].trim() });
+			tLast = m.index + m[0].length;
+		}
+		if (tLast < piece.text.length) expanded.push({ type: "text", text: piece.text.slice(tLast) });
+	}
+	for (const piece of expanded) {
 		if (piece.type === "link") {
 			const lab = linkLabel(piece.target, piece.label);
 			const cap = $el("span.dbtags-ac-link", { title: piece.target });
@@ -2279,6 +2300,16 @@ function renderWikiBody(container, text, terms, h) {
 				cap.addEventListener("mouseenter", (e) => h.onHover(piece.target, e));
 				cap.addEventListener("mouseleave", () => h.onHover(null));
 			}
+			container.append(cap);
+		} else if (piece.type === "group") {
+			/* fix24: clickable group chip straight into the group browser */
+			const g = _groupMap.get(piece.short);
+			const cap = $el("span.dbtags-ac-link.dbtags-ac-gm-chip", { title: `打开标签组 ${piece.short}` });
+			cap.append($el("span.dbtags-ac-g-ico", { textContent: "▣" }), document.createTextNode(g.zh || piece.short));
+			cap.addEventListener("click", (e) => {
+				e.stopPropagation();
+				h.onGroup?.(piece.short, e);
+			});
 			container.append(cap);
 		} else {
 			const seg = highlightSeg(piece.text, terms || []);
@@ -2953,6 +2984,7 @@ class Hud {
 					if (e && (e.ctrlKey || e.metaKey)) hudInsertTag(t);
 					else this.navigate(t);
 				},
+				onGroup: (short) => this.openGroup(short),
 			});
 		} else {
 			this.body.replaceChildren();
