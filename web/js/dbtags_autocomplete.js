@@ -1121,8 +1121,6 @@ class DBTagsAutoComplete {
 		this.selected = null;
 		this.current = [];
 		this._addedTags = new Set();
-		this._previewEl = null;
-		this._previewTimer = null;
 		this._toastEl = null;
 		this._toastTimer = null;
 		this._hKeydown = this.#onKeyDown.bind(this);
@@ -1155,10 +1153,9 @@ class DBTagsAutoComplete {
 		if (_activeAC === this) _activeAC = null;
 		clearTimeout(this._bodyTimer);
 		this._bodyTimer = null;
-		clearTimeout(this._previewTimer);
-		this._previewTimer = null;
-		this._previewEl?.remove();
-		this._previewEl = null;
+		hideLinkPreview();
+		_linkPrevEl?.remove();
+		_linkPrevEl = null;
 		this.el.removeEventListener("keydown", this._hKeydown);
 		this.el.removeEventListener("keyup", this._hKeyup);
 		this.el.removeEventListener("input", this._hInput);
@@ -1687,57 +1684,9 @@ class DBTagsAutoComplete {
 		this.#place();
 	}
 
-	#showPreview(name, event) {
-		this.#hidePreview();
-		// currentTarget is nulled by the browser once dispatch ends: capture the
-		// anchor synchronously or the delayed read throws and the preview never
-		// shows (and bail if the row was re-rendered away before the timer)
-		const anchor = event.currentTarget || event.target;
-		this._previewTimer = setTimeout(() => {
-			this._previewTimer = null;
-			if (!anchor || !anchor.isConnected) return;
-			const tag = getTagMap().get(normName(name));
-			if (!tag) return;
-			if (!this._previewEl) {
-				this._previewEl = $el("div.dbtags-ac-preview");
-				document.body.append(this._previewEl);
-			}
-			this._previewEl.replaceChildren(
-				$el("div.dbtags-ac-preview-title", { textContent: `${dispName(tag.name)}  ${fmtCount(tag.post_count)}` }),
-			);
-			// v0.4.8 feat: hovering a wiki link shows the tag's sample image in the
-			// preview card; settings wikiHoverImg on/off + wikiHoverImgSize small/large
-			const sizing = Config.get("wikiHoverImgSize", "small") === "large" ? "large" : "small";
-			this._previewEl.style.width = (sizing === "large" ? 320 : 240) + "px";
-			if (Config.get("wikiHoverImg", "true") !== "false" && tag.images && tag.images.length) {
-				const im = $el("img", { alt: "" });
-				im.onerror = () => im.remove(); // miss/no-pack -> plain text card, never a broken slot
-				im.src = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=${sizing}`;
-				im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block";
-				this._previewEl.append(im);
-			}
-			this._previewEl.append(
-				$el("div.dbtags-ac-preview-text", {
-					textContent: wikiText(tag)
-						? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
-						: "(无 wiki 正文)",
-				})
-			);
-			const r = anchor.getBoundingClientRect();
-			this._previewEl.style.left = r.right + 10 + "px";
-			this._previewEl.style.top = r.top + "px";
-			this._previewEl.style.display = "";
-		}, 250);
-	}
+	#showPreview(name, event) { showLinkPreview(name, event); } // v0.4.8: module-level card so the HUD wiki links can use it too
 
-	#hidePreview() {
-		clearTimeout(this._previewTimer);
-		this._previewTimer = null;
-		if (this._previewEl) {
-			this._previewEl.style.display = "none";
-			this._previewEl.style.width = ""; // reset the large/small sizing back to the 240px class default
-		}
-	}
+	#hidePreview() { hideLinkPreview(); }
 
 	#imgHoverIn(tag, img) {
 		clearTimeout(this._imgCloseTimer);
@@ -1815,8 +1764,7 @@ class DBTagsAutoComplete {
 
 	#showToast(title, text) {
 		// independent element so mouseleave of the link can't close it
-		clearTimeout(this._previewTimer);
-		if (this._previewEl) this._previewEl.style.display = "none";
+		hideLinkPreview();
 		if (!this._toastEl) {
 			this._toastEl = $el("div.dbtags-ac-preview");
 			document.body.append(this._toastEl);
@@ -2270,6 +2218,61 @@ function highlightSeg(text, terms) {
    chips (only when the short name actually maps to a group in the catalogue -
    unknown text stays plain, no dead links) */
 const GROUP_REF = /\btag[\s_-]*group\s*[:：]\s*([A-Za-z0-9_\-]+(?:[ ]+[A-Za-z0-9_\-]+)*)/gi;
+
+/* v0.4.8: module-level link preview card (one shared instance) - list rows,
+   panel summary links AND hud wiki links all show it; hud previously had no
+   onHover wiring at all, which is why hovering hud links never popped a card */
+let _linkPrevEl = null, _linkPrevTimer = null;
+function showLinkPreview(name, event) {
+	hideLinkPreview();
+	// currentTarget is nulled by the browser once dispatch ends: capture the
+	// anchor synchronously or the delayed read throws and the preview never
+	// shows (and bail if the row was re-rendered away before the timer)
+	const anchor = event.currentTarget || event.target;
+	_linkPrevTimer = setTimeout(() => {
+		_linkPrevTimer = null;
+		if (!anchor || !anchor.isConnected) return;
+		const tag = getTagMap().get(normName(name));
+		if (!tag) return;
+		if (!_linkPrevEl) {
+			_linkPrevEl = $el("div.dbtags-ac-preview");
+			document.body.append(_linkPrevEl);
+		}
+		_linkPrevEl.replaceChildren(
+			$el("div.dbtags-ac-preview-title", { textContent: `${dispName(tag.name)}  ${fmtCount(tag.post_count)}` }),
+		);
+		// feat: hovering a wiki link shows the tag's sample image in the
+		// preview card; settings wikiHoverImg on/off + wikiHoverImgSize small/large
+		const sizing = Config.get("wikiHoverImgSize", "small") === "large" ? "large" : "small";
+		_linkPrevEl.style.width = (sizing === "large" ? 320 : 240) + "px";
+		if (Config.get("wikiHoverImg", "true") !== "false" && tag.images && tag.images.length) {
+			const im = $el("img", { alt: "" });
+			im.onerror = () => im.remove(); // miss/no-pack -> plain text card, never a broken slot
+			im.src = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=${sizing}`;
+			im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block";
+			_linkPrevEl.append(im);
+		}
+		_linkPrevEl.append(
+			$el("div.dbtags-ac-preview-text", {
+				textContent: wikiText(tag)
+					? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
+					: "(无 wiki 正文)",
+			})
+		);
+		const r = anchor.getBoundingClientRect();
+		_linkPrevEl.style.left = r.right + 10 + "px";
+		_linkPrevEl.style.top = r.top + "px";
+		_linkPrevEl.style.display = "";
+	}, 250);
+}
+function hideLinkPreview() {
+	clearTimeout(_linkPrevTimer);
+	_linkPrevTimer = null;
+	if (_linkPrevEl) {
+		_linkPrevEl.style.display = "none";
+		_linkPrevEl.style.width = ""; // reset the large/small sizing back to the 240px class default
+	}
+}
 
 /* render wiki text into container: plain runs + clickable [[links]].
 handlers: { onLink(target, event), onGroup(short, event), onHover(target|null, event) } — optional;
@@ -3035,6 +3038,8 @@ class Hud {
 					else this.navigate(t);
 				},
 				onGroup: (short) => this.openGroup(short),
+				// v0.4.8: hud wiki links never had onHover wiring - hovering popped nothing
+				onHover: (t, e) => (t ? showLinkPreview(t, e) : hideLinkPreview()),
 			});
 		} else {
 			this.body.replaceChildren();
