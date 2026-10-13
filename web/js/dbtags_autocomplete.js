@@ -2257,7 +2257,7 @@ function showLinkPreview(name, event) {
 			// bottom after onload, which the clamp below measured too early
 			im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block"
 				+ `;max-height:${sizing === "large" ? 280 : 200}px;object-fit:cover`;
-			im.onload = () => clampPrev(); // re-clamp once the real height is known
+			im.onload = () => clampPrev(anchor); // fix: anchor must be passed - the bare call threw and the re-clamp never ran
 			im.src = `/dbtags/image?tag=${encodeURIComponent(tag.name)}&v=${DATA_V}&size=${sizing}`;
 			_linkPrevEl.append(im);
 		}
@@ -2279,6 +2279,7 @@ function showLinkPreview(name, event) {
    right would overflow, clamp to the window bounds; re-run from img.onload
    since the image grows the card AFTER the first measure */
 function clampPrev(anchor) {
+	if (!anchor || !anchor.isConnected || _linkPrevEl.style.display === "none") return;
 	const r = anchor.getBoundingClientRect();
 	const w = _linkPrevEl.offsetWidth;
 	let x = r.right + 10;
