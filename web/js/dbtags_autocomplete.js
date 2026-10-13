@@ -1395,7 +1395,7 @@ class DBTagsAutoComplete {
 		return { raw, word: raw.replace(/\s/g, "_") };
 	}
 
-	/* ---- tag-group trigger (P19): 组: / group: (ASCII or full-width colon) ----
+	/* ---- tag-group trigger (P19): 组: / zu: / group: / tg: (ASCII or full-width colon, case-insensitive) ----
 	   While the prefix fragment is live before the caret, the candidate list
 	   lists the 91 groups; Enter/click consumes the fragment and opens the
 	   floating group browser (independent of this popup's #hide lifecycle so
@@ -1403,14 +1403,14 @@ class DBTagsAutoComplete {
 	#groupQuery() {
 		const before = this.helper.getBeforeCursor();
 		if (!before?.length) return null;
-		const m = before.match(/((?:组|tag[\s_]*group|group)[:：][^,;"|{}()\n。！？，、；:：]*)$/i);
+		const m = before.match(/((?:组|zu|tag[\s_]*group|group|tg)[:：][^,;"|{}()\n。！？，、；:：]*)$/i);
 		if (!m) return null;
 		const i = before.length - m[0].length;
 		if (i > 0 && !/[,;"|{}()\n。！？，、；\s]/.test(before[i - 1])) return null;
-		/* fix21: also strip the tag group: / tag_group: spelled-out variants, so the
-		   danbooru-facing query form "Tag group:Sex acts" lands in the group trigger
-		   like its short cousins 组: and group: */
-		return { frag: m[0], rest: m[0].replace(/^(?:组|tag[\s_]*group|group)[:：]/i, "").trim(), i, end: before.length };
+		/* fix21/fix29: also strip the tag group: / tag_group: spelled-out variants
+		   and the zu:/tg: short aliases, so "Tag group:Sex acts", "zu:裙" or "tg:裙"
+		   all land in the group trigger like 组: and group: */
+		return { frag: m[0], rest: m[0].replace(/^(?:组|zu|tag[\s_]*group|group|tg)[:：]/i, "").trim(), i, end: before.length };
 	}
 
 	#consumeGroupTrigger() {
@@ -2191,7 +2191,7 @@ const SETTING_DEFS = {
 	hudOnType: "keep",
 	hudClose: "ball",
 	hudDblCloseAll: "true",
-	groups: "true",      // 组: / group: 触发标签组浏览器（91 组，data/tag_groups.json）
+	groups: "true",      // 组:/zu:/group:/tg: 触发标签组浏览器（91 组，data/tag_groups.json）
 	hudImg: "true",
 	hudWiki: "true",
 	hudImgPrior: "false",
@@ -3214,7 +3214,7 @@ class Hud {
 
 /* ================= tag-group browser (P19) =================
 A floating window decoupled from the completion popup (same philosophy as the
-HUD/styler): typing 组: / group: or clicking a 属于组 chip opens it; picking
+HUD/styler): typing 组:/zu:/group:/tg: or clicking a 属于组 chip opens it; picking
 members inserts through the last active completion input and the window stays
 open so a whole set of tags can be assembled in one pass. In HUD mode the
 browser can also live inside a group tab (Hud.openGroup). */
