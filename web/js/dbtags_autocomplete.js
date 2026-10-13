@@ -2963,6 +2963,8 @@ class Hud {
 			this.count.textContent = "";
 			this.zh.textContent = "";
 			this.zh.style.display = "none";
+			this.gm.replaceChildren();
+			this.gm.style.display = "none"; /* fix26: the blank-frame branch leaked the previous tag's belongs-to chips */
 			this.body.replaceChildren();
 			this._imgSeq++; // invalidate any in-flight image load
 			this.#closeImgCard();
