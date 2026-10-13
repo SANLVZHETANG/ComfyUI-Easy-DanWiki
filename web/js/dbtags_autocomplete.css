@@ -645,6 +645,23 @@ html.dbtags-noblur .dbtags-ac-hud {
 	flex-direction: column;
 	gap: 8px;
 }
+/* v0.4.8: folded settings group (native <details>) - wiki panel card */
+.dbtags-ac-styler-fold > summary {
+	cursor: pointer;
+	user-select: none;
+	font-weight: bold;
+	padding: 2px 0;
+}
+.dbtags-ac-styler-fold[open] > summary {
+	margin-bottom: 8px;
+}
+.dbtags-ac-styler-fold {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-left: 14px;
+	border-left: 2px solid var(--dbtags-ac-border);
+}
 
 .dbtags-ac-styler-label {
 	flex: 0 0 132px;

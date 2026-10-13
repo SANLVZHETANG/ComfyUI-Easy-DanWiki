@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a34";
+const ASSET_V = "a35";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2171,6 +2171,7 @@ const SETTING_DEFS = {
 	hudImgMode: "large",
 	wikiHoverImg: "true",    // v0.4.8: hover preview card shows the tag's sample image
 	wikiHoverImgSize: "small", // small/large
+	wikiHoverText: "true",   // v0.4.8: hover preview card keeps the text excerpt
 	navMode: "A",
 	widthMode: "fixed",
 	fontFamily: "MapleMonoNormal-NF-CN-Medium",
@@ -2252,13 +2253,15 @@ function showLinkPreview(name, event) {
 			im.style.cssText = "width:100%;height:auto;border-radius:4px;margin-bottom:4px;display:block";
 			_linkPrevEl.append(im);
 		}
-		_linkPrevEl.append(
-			$el("div.dbtags-ac-preview-text", {
-				textContent: wikiText(tag)
-					? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
-					: "(无 wiki 正文)",
-			})
-		);
+		if (Config.get("wikiHoverText", "true") !== "false") {
+			_linkPrevEl.append(
+				$el("div.dbtags-ac-preview-text", {
+					textContent: wikiText(tag)
+						? wikiText(tag).replace(/\[\[|\]\]/g, "").slice(0, 100) + (wikiText(tag).length > 100 ? "…" : "")
+						: "(无 wiki 正文)",
+				})
+			);
+		}
 		const r = anchor.getBoundingClientRect();
 		_linkPrevEl.style.left = r.right + 10 + "px";
 		_linkPrevEl.style.top = r.top + "px";
@@ -3633,6 +3636,7 @@ const HELP = {
 	hudImgMode: "大图＝悬浮窗内直接铺示例图；缩略图＝显示小图。两种模式下鼠标移到图上会立即显示「查看大图」，停留约 0.2 秒自动弹出原尺寸大图卡（移开或 Esc 关闭，点击图也可打开）。",
 	wikiHoverImg: "悬停在 wiki 正文或候选列表的链接上时，预览卡会先显示该 tag 的示例图再给摘要；关闭后只显示文字预览。",
 	wikiHoverImgSize: "悬停预览卡的示例图尺寸：小图=轻量缩略（默认、秒出），大图=显示原尺寸示例图。",
+	wikiHoverText: "悬停预览卡里正文摘要文字的开关；预览图与摘要都关时，卡只留标题与计数一行。",
 	hudImgPrior: "图片优先：开＝图铺满窗口、文字下移；关＝文字优先，图小、正文多。",
 	fontFamily: "整个界面（候选列表、面板、悬浮窗与本设置窗）使用的字体；选「默认」即用系统 sans-serif。",
 };
@@ -3814,6 +3818,13 @@ class Styler {
 		cb.checked = Config.get(key, dflt) !== "false";
 		cb.onchange = () => this.#set(key, cb.checked);
 		return $el("div.dbtags-ac-styler-row", {}, [this.#lab(label, key, hint), cb]);
+	}
+
+	#foldRow(label, rows) {
+		// v0.4.8: native <details> - folding is free, no custom open-state to persist
+		const d = $el("details.dbtags-ac-styler-fold");
+		d.append($el("summary", { textContent: label }), ...rows);
+		return d;
 	}
 
 	#sliderRow(label, key, min, max, dflt, fmt) {
@@ -4284,8 +4295,11 @@ class Styler {
 			this.#boolRow("跳转胶囊", "showLinks"),
 			this.#comboRow("跳转展开", "navMode", [["A", "分栏展开"], ["B", "替换当前栏"]], "A"),
 			this.#boolRow("标签组", "groups", "true", "输入 组: 或 group: 打开 Danbooru 标签组浏览器（91 组）；wiki 面板会显示 tag 的组归属"),
-			this.#boolRow("悬停预览图", "wikiHoverImg", "true", "悬停在 wiki 链接上时预览卡显示该 tag 的示例图（0.25 秒停留防抖）"),
-			this.#comboRow("悬停图尺寸", "wikiHoverImgSize", [["small", "小图（秒出）"], ["large", "大图"]], "small"),
+			this.#foldRow("悬停预览", [
+				this.#boolRow("显示预览图", "wikiHoverImg", "true", "悬停 wiki 链接时预览卡显示该 tag 的示例图（0.25 秒防抖）"),
+				this.#comboRow("预览图尺寸", "wikiHoverImgSize", [["small", "小图（秒出）"], ["large", "大图"]], "small"),
+				this.#boolRow("显示文字摘要", "wikiHoverText", "true", "预览卡里的正文摘要开关；图与摘要都关时卡只留标题与计数"),
+			]),
 		);
 		const hudOpRow = this.#sliderRow("悬浮窗不透明度", "hudOpacity", 25, 100, hudOpacityVal(), (x) => x + "%");
 		const hudOpRange = hudOpRow.querySelector("input");
