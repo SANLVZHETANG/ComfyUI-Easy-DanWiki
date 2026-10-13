@@ -662,6 +662,12 @@ html.dbtags-noblur .dbtags-ac-hud {
 	padding-left: 14px;
 	border-left: 2px solid var(--dbtags-ac-border);
 }
+/* v0.4.8 feat3: native disabled grey is nearly invisible on light themes */
+.dbtags-ac-styler-fold input:disabled,
+.dbtags-ac-styler-fold select:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
 
 .dbtags-ac-styler-label {
 	flex: 0 0 132px;

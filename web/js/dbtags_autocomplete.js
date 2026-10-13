@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a36";
+const ASSET_V = "a37";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -2266,10 +2266,18 @@ function showLinkPreview(name, event) {
 				})
 			);
 		}
+		// v0.4.8 fix: display first (layout needed for measuring), then clamp
+		// into the viewport - the naive r.right+10 pushed the card past the
+		// right edge whenever the link sat near it (user: 出界); flip to the
+		// link's left side and clamp top at the window bounds
+		_linkPrevEl.style.display = "block"; // also fixes: class carries display:none - "" never un-hid it
 		const r = anchor.getBoundingClientRect();
-		_linkPrevEl.style.left = r.right + 10 + "px";
-		_linkPrevEl.style.top = r.top + "px";
-		_linkPrevEl.style.display = "block"; // fix: class carries display:none - "" never un-hid it
+		const w = _linkPrevEl.offsetWidth;
+		let x = r.right + 10;
+		if (x + w > innerWidth - 8) x = Math.max(8, r.left - w - 10);
+		_linkPrevEl.style.left = x + "px";
+		const h = _linkPrevEl.offsetHeight;
+		_linkPrevEl.style.top = Math.min(Math.max(r.top, 8), Math.max(8, innerHeight - h - 8)) + "px";
 	}, 250);
 }
 function hideLinkPreview() {
