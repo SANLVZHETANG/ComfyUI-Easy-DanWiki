@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../web/js/dbtags_autocomplete.css">
+<style>
+  body{background:#242424;padding:14px;margin:0;}
+  .dv{color:#8cf;font:11px monospace;margin:0 0 4px;}
+</style></head><body>
+<script>
+const T=(z,e,c,noimg)=>'<div class="dbtags-ac-gtile'+(noimg?' dbtags-ac-gtile--noimg':'')+'">'+(noimg?'<span class="dbtags-ac-gtile-q">?</span>':'<img alt="" style="background:repeating-linear-gradient(45deg,#333,#333 10px,#3a3a3a 10px,#3a3a3a 20px);border-radius:4px">')+'<span class="dbtags-ac-gtile-zh">'+z+'</span><span class="dbtags-ac-gtile-en">'+e+'</span><span class="dbtags-ac-gtile-cnt">'+c+'</span></div>';
+const sec='<div class="dbtags-ac-gsec"><div class="dbtags-ac-gsec-head"><span class="dbtags-ac-gsec-caret">▾</span><span class="dbtags-ac-gsec-title">取景器</span><span class="dbtags-ac-gsec-en"> Viewfinder</span><span class="dbtags-ac-gsec-count">8</span></div><div class="dbtags-ac-gtiles">'+
+ T("贴纸腮红","blush_sticker…","156K") + T("空气透视","atmospheric…","351",1) + T("图表","chart","2.3K",1) + T("交叉腿","crossed_legs","105K") + T("莲花坐","lotus_position","177") + T("出招表","move_char… ","51",1) +
+'</div></div>';
+document.body.innerHTML='<div class="dv">fix36: noimg tiles at 40px placeholder -> rows stay even (a31)</div>'+
+ '<div class="dbtags-ac-hud" style="--dbtags-ac-font:16px;position:relative;z-index:auto;max-width:none;max-height:none;width:441px;height:300px;resize:none">'+
+  '<div class="dbtags-ac-hud-body"><div class="dbtags-ac-gscroll">'+sec+'</div></div></div>';
+</script>
+</body></html>

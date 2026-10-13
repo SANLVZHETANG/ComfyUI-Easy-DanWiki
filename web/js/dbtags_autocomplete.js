@@ -17,7 +17,7 @@ store actually changes (rebuild -> users re-fetch ~25MB by design); bump
 ASSET_V for any CSS/theming change (only ~66KB). Pure-js fixes need neither
 (ComfyUI serves this file itself with ETag/Last-Modified). */
 const DATA_V = "v0.4.7e";
-const ASSET_V = "a30";
+const ASSET_V = "a31";
 {
 	const url = new URL("./dbtags_autocomplete.css", import.meta.url);
 	url.search = "?v=" + ASSET_V;
@@ -3304,7 +3304,7 @@ function buildGroupBody(host, g, ctx) {
 			(ctx.onShow || ctx.onInsert)(name, cell);
 		};
 		if (t && t.images && t.images.length) {
-			const img = $el("img", { loading: "lazy", alt: "" });
+			const img = $el("img", { alt: "" }); // fix36: no lazy - HUD tabs open from display:none and lazy shots never fire for the first rows
 			img.onerror = () => { img.remove(); cell.classList.add("dbtags-ac-gtile--noimg"); };
 			img.src = `/dbtags/image?tag=${encodeURIComponent(name)}&v=${DATA_V}&size=small`;
 			img.onclick = onView; // fix28: upper half opens the wiki sheet
@@ -3316,15 +3316,18 @@ function buildGroupBody(host, g, ctx) {
 			cell.append(q);
 		}
 		const zh = zhLabelOf(name).replace(/\s+/g, ""); // fix34: data spaces ("荷兰 角") would wrap weirdly in tiled display
-		cell.append($el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") }));
-		cell.append($el("span.dbtags-ac-gtile-en", { textContent: name }));
+		const insert = (e) => { e.stopPropagation(); ctx.onInsert(name, cell); };
+		const zhS = $el("span.dbtags-ac-gtile-zh", { textContent: zh || name.replace(/_/g, " ") });
+		const enS = $el("span.dbtags-ac-gtile-en", { textContent: name });
+		zhS.onclick = insert; // fix36: text half inserts explicitly, no bubble reliance
+		enS.onclick = insert;
+		cell.append(zhS, enS);
 		if (t && t.post_count != null) {
-			cell.append($el("span.dbtags-ac-gtile-cnt", { textContent: fmtCount(t.post_count), title: t.post_count + " images" }));
+			const cS = $el("span.dbtags-ac-gtile-cnt", { textContent: fmtCount(t.post_count), title: t.post_count + " images" });
+			cS.onclick = insert;
+			cell.append(cS);
 		}
-		cell.onclick = (e) => {
-			e.stopPropagation();
-			ctx.onInsert(name, cell);
-		};
+		cell.onclick = insert;
 		return cell;
 	}
 	host.append(tools, body);

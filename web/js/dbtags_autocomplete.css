@@ -1681,6 +1681,11 @@ html.dbtags-noblur .dbtags-ac-hud {
 .dbtags-ac-hud .dbtags-ac-gtile img {
 	height: 40px;
 }
+/* fix36: the no-image placeholder must match the 40px hud image height, or the
+   noimg tiles stand taller than their row (user [Image1]: ragged section rows) */
+.dbtags-ac-hud .dbtags-ac-gtile--noimg .dbtags-ac-gtile-q {
+	height: 40px;
+}
 /* fix35: the REAL wrap-killer found by instrumented probe - fix19's
    text-indent:2em on .dbtags-ac-hud-body computes to 32px (2em of the 16px
    hud font) and is inherited by EVERY descendant line inside the group
