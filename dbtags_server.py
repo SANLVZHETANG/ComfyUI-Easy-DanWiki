@@ -239,6 +239,24 @@ def get_ext_dir(subpath=None):
     return os.path.abspath(dir)
 
 
+# v0.4.8: the frontend js/css have no per-file cache key (ComfyUI serves
+# WEB_DIRECTORY statically), so a deployed update could sit behind browser
+# heuristics for days. Append one middleware: any request for this plugin's
+# /extensions/ComfyUI-Easy-DanWiki/* gets Cache-Control: no-store, while
+# everything else (ComfyUI core, other extensions) is untouched.
+@web.middleware
+async def _ext_no_store_mw(request, handler):
+    resp = await handler(request)
+    if request.path.startswith("/extensions/ComfyUI-Easy-DanWiki/"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+try:
+    PromptServer.instance.app.middlewares.append(_ext_no_store_mw)
+except Exception as _e:  # server shape drifts: never break startup over caching
+    print("[dbtags] no-store middleware skipped:", _e)
+
+
 if __name__ == "__main__":
     import sys
     _log("direct run: manifest=%d entries" % len(_load_manifest()))
